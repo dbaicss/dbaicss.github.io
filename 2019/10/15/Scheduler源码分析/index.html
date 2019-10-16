@@ -16,7 +16,7 @@
 <meta property="og:description" content="Scheduler作用1Scheduler一句话总结是主动请求api server,获取等待调度的pod信息列表,通过一系列的调度算法,帅选出满足需求的node, 将pod和node的绑定关系返回给api server,从而完成整个pod调度的过程  Scheduler代码结构1234Scheduler代码结构比较清晰,主要分为三个部分①. cmd/kube-scheduler/scheduler">
 <meta property="og:locale" content="zh-cn">
 <meta property="og:image" content="https://dbaicss.github.io/images/scheduler-flow.png">
-<meta property="og:updated_time" content="2019-10-15T10:15:41.863Z">
+<meta property="og:updated_time" content="2019-10-15T10:25:22.488Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Scheduler源码分析">
 <meta name="twitter:description" content="Scheduler作用1Scheduler一句话总结是主动请求api server,获取等待调度的pod信息列表,通过一系列的调度算法,帅选出满足需求的node, 将pod和node的绑定关系返回给api server,从而完成整个pod调度的过程  Scheduler代码结构1234Scheduler代码结构比较清晰,主要分为三个部分①. cmd/kube-scheduler/scheduler">
@@ -104,13 +104,27 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://dbaicss.github.io/2019/10/15/Scheduler源码分析/" data-id="ck1rp13ex0000hf0b4f89jh0q" class="article-share-link">Share</a>
+      <a data-url="https://dbaicss.github.io/2019/10/15/Scheduler源码分析/" data-id="ck1t46kzf000148fyhv2ez8ay" class="article-share-link">Share</a>
       
       
     </footer>
   </div>
   
     
+<nav id="article-nav">
+  
+    <a href="/2019/10/16/Scheduler源码分析-番2-初选过程/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          Scheduler源码分析-番2-初选过程
+        
+      </div>
+    </a>
+  
+  
+</nav>
+
   
 </article>
 
@@ -141,6 +155,10 @@
     <h3 class="widget-title">Recent Posts</h3>
     <div class="widget">
       <ul>
+        
+          <li>
+            <a href="/2019/10/16/Scheduler源码分析-番2-初选过程/">Scheduler源码分析-番2-初选过程</a>
+          </li>
         
           <li>
             <a href="/2019/10/15/Scheduler源码分析/">Scheduler源码分析</a>
