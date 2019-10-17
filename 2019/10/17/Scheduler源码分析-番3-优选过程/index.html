@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="utf-8">
+  
+
+  
+  <title>Scheduler源码分析-番3-优选过程 | 皮特撸斯</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="description" content="理解priority过程123优选过程位于pkg/scheduler/core/generic_scheduler.go文件,主要是PrioritizeNodes方法,跟进去仔细看下这个函数特别长,我们先精简下!从注释理解就是PrioritizeNodes并发调用prioritize,每个prioritize会计算出一个分数,从0-10,表示从低到高每个prioritize还可以有权重,权重*分数">
+<meta name="keywords" content="kubernetes golang go 源码">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Scheduler源码分析-番3-优选过程">
+<meta property="og:url" content="https://dbaicss.github.io/2019/10/17/Scheduler源码分析-番3-优选过程/index.html">
+<meta property="og:site_name" content="皮特撸斯">
+<meta property="og:description" content="理解priority过程123优选过程位于pkg/scheduler/core/generic_scheduler.go文件,主要是PrioritizeNodes方法,跟进去仔细看下这个函数特别长,我们先精简下!从注释理解就是PrioritizeNodes并发调用prioritize,每个prioritize会计算出一个分数,从0-10,表示从低到高每个prioritize还可以有权重,权重*分数">
+<meta property="og:locale" content="zh-cn">
+<meta property="og:updated_time" content="2019-10-17T05:51:21.149Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Scheduler源码分析-番3-优选过程">
+<meta name="twitter:description" content="理解priority过程123优选过程位于pkg/scheduler/core/generic_scheduler.go文件,主要是PrioritizeNodes方法,跟进去仔细看下这个函数特别长,我们先精简下!从注释理解就是PrioritizeNodes并发调用prioritize,每个prioritize会计算出一个分数,从0-10,表示从低到高每个prioritize还可以有权重,权重*分数">
+  
+    <link rel="alternate" href="/atom.xml" title="皮特撸斯" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="/favicon.png">
+  
+  
+    <link href="//fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet" type="text/css">
+  
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+</html>
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">皮特撸斯</a>
+      </h1>
+      
+        <h2 id="subtitle-wrap">
+          <a href="/" id="subtitle">做正确的事</a>
+        </h2>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://dbaicss.github.io"></form>
+      </div>
+    </div>
+  </div>
+</header>
+      <div class="outer">
+        <section id="main"><article id="post-Scheduler源码分析-番3-优选过程" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2019/10/17/Scheduler源码分析-番3-优选过程/" class="article-date">
+  <time datetime="2019-10-17T01:24:43.000Z" itemprop="datePublished">2019-10-17</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      Scheduler源码分析-番3-优选过程
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h2 id="理解priority过程"><a href="#理解priority过程" class="headerlink" title="理解priority过程"></a>理解priority过程</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">优选过程位于pkg/scheduler/core/generic_scheduler.go文件,主要是PrioritizeNodes方法,跟进去仔细看下</span><br><span class="line">这个函数特别长,我们先精简下!从注释理解就是PrioritizeNodes并发调用prioritize,每个prioritize会计算出一个分数,从0-10,表示从低到高</span><br><span class="line">每个prioritize还可以有权重,权重*分数=加权分,最终所有分值加起来即为该node的最终得分,通过分数来实现node的优先级</span><br></pre></td></tr></table></figure>
+
+<h2 id="源码分析"><a href="#源码分析" class="headerlink" title="源码分析"></a>源码分析</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br></pre></td><td class="code"><pre><span class="line">我们来看下这个方法的入参和出参,首先是入参:</span><br><span class="line">pod *v1.Pod* // pod信息；</span><br><span class="line">*nodeNameToInfo map[string]*schedulercache.NodeInfo // node信息；</span><br><span class="line">meta interface&#123;&#125; // 源数据信息,和predicate里的meta不太一样,具体会再分析；</span><br><span class="line">priorityConfigs []algorithm.PriorityConfig // 各种优选算法信息，上面的代码中多次体现；</span><br><span class="line">nodes []*v1.Node // node集合；</span><br><span class="line">extenders []algorithm.SchedulerExtender //字面意思调度扩展</span><br><span class="line">fwk framework.Framework // 看太明白的先跳过</span><br><span class="line">state *framework.CycleState //状态信息</span><br><span class="line">接下来看看出参:</span><br><span class="line">framework.NodeScoreList  // node分数列表,继续分析下这个列表</span><br><span class="line">// <span class="built_in">type</span> NodeScoreList []NodeScore</span><br><span class="line">// <span class="built_in">type</span> NodeScore struct &#123;</span><br><span class="line">// Name  string</span><br><span class="line">// Score int64</span><br><span class="line">// &#125;</span><br><span class="line">error   // 错误信息</span><br><span class="line">NodeScore这个struct的属性是Name和Score，保存的是一个节点的名字和分值，换句话说就是一个node在一个priority算法计算后所得到的结果,然后看NodeScoreList,就是NodeScore的集合,简单说就是多个node在priority算法计算后所得到的结果集</span><br><span class="line">func PrioritizeNodes(</span><br><span class="line">	pod *v1.Pod,</span><br><span class="line">	nodeNameToInfo map[string]*schedulernodeinfo.NodeInfo,</span><br><span class="line">	meta interface&#123;&#125;,</span><br><span class="line">	priorityConfigs []priorities.PriorityConfig,</span><br><span class="line">	nodes []*v1.Node,</span><br><span class="line">	extenders []algorithm.SchedulerExtender,</span><br><span class="line">	fwk framework.Framework,</span><br><span class="line">	state *framework.CycleState) (framework.NodeScoreList, error) &#123;</span><br><span class="line"></span><br><span class="line">    //特殊情况,没有优选算法配置,也没有扩展</span><br><span class="line">    <span class="keyword">if</span> len(priorityConfigs) == 0 &amp;&amp; len(extenders) == 0 &#123;</span><br><span class="line">        result := make(framework.NodeScoreList, 0, len(nodes))</span><br><span class="line">		<span class="keyword">for</span> i := range nodes &#123;</span><br><span class="line">            // EqualPriorityMap优先级函数，对所有节点的权重都相等</span><br><span class="line">			hostPriority, err := EqualPriorityMap(pod, meta, nodeNameToInfo[nodes[i].Name])</span><br><span class="line">			<span class="keyword">if</span> err != nil &#123;</span><br><span class="line">				<span class="built_in">return</span> nil, err</span><br><span class="line">			&#125;</span><br><span class="line">			result = append(result, hostPriority)</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="built_in">return</span> result, nil</span><br><span class="line">    &#125;</span><br><span class="line">    // 这里定义锁，并发等待wg和错误集合errs；</span><br><span class="line">    var (</span><br><span class="line">        mu   = sync.Mutex&#123;&#125;</span><br><span class="line">        wg   = sync.WaitGroup&#123;&#125;</span><br><span class="line">        errs []error</span><br><span class="line">    )</span><br><span class="line">    // 这里定义了appendError函数，实现在并发条件下将错误信息收集到errs中；</span><br><span class="line">    appendError := func(err error) &#123;</span><br><span class="line">        mu.Lock()</span><br><span class="line">        defer mu.Unlock()</span><br><span class="line">        errs = append(errs, err)</span><br><span class="line">    &#125;</span><br><span class="line">    // results类型是[]framework.NodeScoreList，它保存的是所有算法作用作用于所有node之后得到的结果集，类似于二维数组，</span><br><span class="line">    // 每列是1个算法作用于1个节点的结果，每行表示该算法作用于所有节点的结果；一行展成一个二维就是所有算法作用于所有节点；</span><br><span class="line">    results := make([]framework.NodeScoreList, len(priorityConfigs), len(priorityConfigs))</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    //遍历prioritize的配置信息</span><br><span class="line">	<span class="keyword">for</span> i := range priorityConfigs &#123;</span><br><span class="line">        ......</span><br><span class="line">	&#125;</span><br><span class="line">    //ParallelizeUntil方法是不是很眼熟,没错,在初选过程中也用到这个方法</span><br><span class="line">	workqueue.ParallelizeUntil(context.TODO(), 16, len(nodes), func(index int) &#123;</span><br><span class="line">	&#125;)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> i := range priorityConfigs &#123;</span><br><span class="line">        ......</span><br><span class="line">	&#125;</span><br><span class="line">	//等待计算完成</span><br><span class="line">	wg.Wait()</span><br><span class="line">	<span class="keyword">if</span> len(errs) != 0 &#123;</span><br><span class="line">		<span class="built_in">return</span> framework.NodeScoreList&#123;&#125;, errors.NewAggregate(errs)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	// 各种计算分数插件,有亲和性的,反亲和性的, 根据label匹配的等等</span><br><span class="line">    state.Write(migration.PrioritiesStateKey, &amp;migration.PrioritiesStateData&#123;Reference: meta&#125;)</span><br><span class="line">	scoresMap, scoreStatus := fwk.RunScorePlugins(state, pod, nodes)</span><br><span class="line">	<span class="keyword">if</span> !scoreStatus.<span class="function"><span class="title">IsSuccess</span></span>() &#123;</span><br><span class="line">		<span class="built_in">return</span> framework.NodeScoreList&#123;&#125;, scoreStatus.AsError()</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	// 汇总分数,生成result这个二维数组</span><br><span class="line">    result := make(framework.NodeScoreList, 0, len(nodes))</span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> i := range nodes &#123;</span><br><span class="line">		result = append(result, framework.NodeScore&#123;Name: nodes[i].Name, Score: 0&#125;)</span><br><span class="line">		<span class="keyword">for</span> j := range priorityConfigs &#123;</span><br><span class="line">			result[i].Score += results[j][i].Score * priorityConfigs[j].Weight</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		<span class="keyword">for</span> j := range scoresMap &#123;</span><br><span class="line">			result[i].Score += scoresMap[j][i].Score</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> len(extenders) != 0 &amp;&amp; nodes != nil &#123;</span><br><span class="line">		combinedScores := make(map[string]int64, len(nodeNameToInfo))</span><br><span class="line">		<span class="keyword">for</span> i := range extenders &#123;</span><br><span class="line">			<span class="keyword">if</span> !extenders[i].IsInterested(pod) &#123;</span><br><span class="line">				<span class="built_in">continue</span></span><br><span class="line">			&#125;</span><br><span class="line">			wg.Add(1)</span><br><span class="line">			go func(extIndex int) &#123;</span><br><span class="line">				defer wg.Done()</span><br><span class="line">                //调用prioritize方法</span><br><span class="line">				prioritizedList, weight, err := extenders[extIndex].Prioritize(pod, nodes)</span><br><span class="line">				<span class="keyword">if</span> err != nil &#123;</span><br><span class="line">					// Prioritization errors from extender can be ignored, <span class="built_in">let</span> k8s/other extenders determine the priorities</span><br><span class="line">					<span class="built_in">return</span></span><br><span class="line">				&#125;</span><br><span class="line">				mu.Lock()</span><br><span class="line">				<span class="keyword">for</span> i := range *prioritizedList &#123;</span><br><span class="line">					host, score := (*prioritizedList)[i].Host, (*prioritizedList)[i].Score</span><br><span class="line">					<span class="keyword">if</span> klog.V(10) &#123;</span><br><span class="line">						klog.Infof(<span class="string">"%v -&gt; %v: %v, Score: (%d)"</span>, util.GetPodFullName(pod), host, extenders[extIndex].Name(), score)</span><br><span class="line">					&#125;</span><br><span class="line">					combinedScores[host] += score * weight</span><br><span class="line">				&#125;</span><br><span class="line">				mu.Unlock()</span><br><span class="line">			&#125;(i)</span><br><span class="line">		&#125;</span><br><span class="line">		// <span class="built_in">wait</span> <span class="keyword">for</span> all go routines to finish</span><br><span class="line">		wg.Wait()</span><br><span class="line">		<span class="keyword">for</span> i := range result &#123;</span><br><span class="line">			result[i].Score += combinedScores[result[i].Name] * (framework.MaxNodeScore / extenderv1.MaxExtenderPriority)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="built_in">return</span> result, nil</span><br><span class="line">&#125;</span><br><span class="line">优选过程主要流程就是这些</span><br></pre></td></tr></table></figure>
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://dbaicss.github.io/2019/10/17/Scheduler源码分析-番3-优选过程/" data-id="ck1uadxx20000zzfydiueo1ke" class="article-share-link">Share</a>
+      
+      
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2019/10/16/Scheduler源码分析-番2-初选过程/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">Scheduler源码分析-番2-初选过程</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+
+  
+    
+
+  
+    
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/10/">十月 2019</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2019/10/17/Scheduler源码分析-番3-优选过程/">Scheduler源码分析-番3-优选过程</a>
+          </li>
+        
+          <li>
+            <a href="/2019/10/16/Scheduler源码分析-番2-初选过程/">Scheduler源码分析-番2-初选过程</a>
+          </li>
+        
+          <li>
+            <a href="/2019/10/15/Scheduler源码分析/">Scheduler源码分析</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      &copy; 2019 dbaicss<br>
+      Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+
+
+  <link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+  <script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+
+<script src="/js/script.js"></script>
+
+
+
+  </div>
+</body>
+</html>
