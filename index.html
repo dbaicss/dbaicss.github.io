@@ -94,13 +94,23 @@
       
         <h3 id="安装prometheus-grafana"><a href="#安装prometheus-grafana" class="headerlink" title="安装prometheus+grafana"></a>安装prometheus+grafana</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">这个没啥好说的,网上的资料非常多,不论是物理部署,docker部署还是k8s部署,基本都差不太多</span><br></pre></td></tr></table></figure>
 
-<h3 id="grafana设置dashboard展示"><a href="#grafana设置dashboard展示" class="headerlink" title="grafana设置dashboard展示"></a>grafana设置dashboard展示</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">grafana设置dashboard template variables,见下面的例子</span><br><span class="line">1.首先在prometheus查找到对应的metrci name,这取决于你的exorter上报的metric name,这里以zk服务为例,查出结果如下图:</span><br><span class="line">![](/images/promethesu数据.png)</span><br><span class="line">2.在grafana中新增变量job,配置方式如下图,其中name自定义,关键配置在于Query里面,label_values应该是grafana内置变量,没仔细研究,</span><br><span class="line">zk_znode_count这就是上面查找到的metric name,job对应为metric name的tag,其它按照选择勾选,然后保存就好</span><br><span class="line">![](/images/编辑变量.png)</span><br><span class="line">3.新增依赖变量,完整配置如下图,其中zk_znode_count&#123;job=~<span class="string">"<span class="variable">$job</span>"</span>&#125;中<span class="variable">$job</span>就是上面第二部配置中的变量名 ,zk_host同样是metric name的tag,然后保存</span><br><span class="line">![](/images/依赖变量.png)</span><br><span class="line">4.最终加上pannel的query配置之后整体效果图如下</span><br><span class="line">![](/images/final效果图.png)</span><br></pre></td></tr></table></figure>
+<h3 id="grafana设置dashboard展示"><a href="#grafana设置dashboard展示" class="headerlink" title="grafana设置dashboard展示"></a>grafana设置dashboard展示</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">grafana设置dashboard template variables,见下面的例子</span><br><span class="line">1.首先在prometheus查找到对应的metrci name,这取决于你的exorter上报的metric name,这里以zk服务为例,查出结果如下图:</span><br></pre></td></tr></table></figure>
 
+<p><img src="/images/promethesu%E6%95%B0%E6%8D%AE.png" alt></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">2.在grafana中新增变量job,配置方式如下图,其中name自定义,关键配置在于Query里面,label_values应该是grafana内置变量,没仔细研究,</span><br><span class="line">zk_znode_count这就是上面查找到的metric name,job对应为metric name的tag,其它按照选择勾选,然后保存就好</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/%E7%BC%96%E8%BE%91%E5%8F%98%E9%87%8F.png" alt></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">3.新增依赖变量,完整配置如下图,其中zk_znode_count&#123;job=~<span class="string">"<span class="variable">$job</span>"</span>&#125;中<span class="variable">$job</span>就是上面第二部配置中的变量名 ,zk_host同样是metric name的tag,然后保存</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/%E4%BE%9D%E8%B5%96%E5%8F%98%E9%87%8F.png" alt></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">4.最终加上pannel的query配置之后整体效果图如下</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/final%E6%95%88%E6%9E%9C%E5%9B%BE.png" alt></p>
 <h3 id="grafana设置告警"><a href="#grafana设置告警" class="headerlink" title="grafana设置告警"></a>grafana设置告警</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">1.设置grafana告警的组件,grafana 6.3版本默认支持的告警的组件非常多,包括钉钉,电报,altermanager等等,我们这里选择web hook,也就是自定义的方式,说到这里就得介绍个开源项目,github地址是:https://github.com/dbaicss/PrometheusAlert,</span><br><span class="line">我fork代码,支持了告警历史记录到数据库,方便做后续的统计和管理,具体使用方式和实现功能自己去看,项目首页写的非常清楚.</span><br><span class="line">接下来就是设置具体监控项告警,上面已经说到了具体告警项已经支持variables,可是目前grafana还不支持给template variable设置告警,这里用了个比较</span><br><span class="line">trick的方式解决,参考下图:</span><br><span class="line">![](/images/no_variable.png)</span><br><span class="line">对,没错,就是新增一个query,然后把template variable去掉,并且点击右上角的<span class="built_in">disable</span> query,简单来说就是加一个query option,但是不展示这个query的数据</span><br><span class="line">2.设置告警,其它的自己输入,Conditions条件里面of query的时候选择上面步骤中对应的query option,也就是没有template variable那个,其它的都没啥</span><br><span class="line">![](/images/alter.png)</span><br><span class="line">3.最终告警效果图如下,这里以企业微信接收告警为例:</span><br><span class="line">![](/images/final-alter-reuslt.png)</span><br></pre></td></tr></table></figure>
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://dbaicss.github.io/2019/12/05/基于prometheus-grafana实现监控告警/" data-id="ck3sbqqqh0005ntfy6i82xd3y" class="article-share-link">Share</a>
+      <a data-url="https://dbaicss.github.io/2019/12/05/基于prometheus-grafana实现监控告警/" data-id="ck3sbu8zm0005qbfyzz7cg7dv" class="article-share-link">Share</a>
       
       
     </footer>
@@ -144,7 +154,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://dbaicss.github.io/2019/10/30/Scheduler源码分析-番6-亲和性调度/" data-id="ck3sbqqr10008ntfy4zvs48ti" class="article-share-link">Share</a>
+      <a data-url="https://dbaicss.github.io/2019/10/30/Scheduler源码分析-番6-亲和性调度/" data-id="ck3sbu9070008qbfyju69umu0" class="article-share-link">Share</a>
       
       
     </footer>
@@ -188,7 +198,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://dbaicss.github.io/2019/10/24/Scheduler源码分析-番5-初始化-2/" data-id="ck3sbqqqw0007ntfybphb5fsc" class="article-share-link">Share</a>
+      <a data-url="https://dbaicss.github.io/2019/10/24/Scheduler源码分析-番5-初始化-2/" data-id="ck3sbu9030007qbfyokatatys" class="article-share-link">Share</a>
       
       
     </footer>
@@ -224,7 +234,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://dbaicss.github.io/2019/10/22/Scheduler源码分析-番5-初始化/" data-id="ck3sbqqqf0003ntfy1heal4jf" class="article-share-link">Share</a>
+      <a data-url="https://dbaicss.github.io/2019/10/22/Scheduler源码分析-番5-初始化/" data-id="ck3sbu8zk0003qbfyllnqkhrb" class="article-share-link">Share</a>
       
       
     </footer>
@@ -262,7 +272,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://dbaicss.github.io/2019/10/21/Scheduler源码分析-番4-抢占调度-2/" data-id="ck3sbqqqq0006ntfynphsa4h8" class="article-share-link">Share</a>
+      <a data-url="https://dbaicss.github.io/2019/10/21/Scheduler源码分析-番4-抢占调度-2/" data-id="ck3sbu8zw0006qbfyw7a3ns0p" class="article-share-link">Share</a>
       
       
     </footer>
@@ -302,7 +312,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://dbaicss.github.io/2019/10/18/Scheduler源码分析-番4-抢占调度-1/" data-id="ck3sbqqqe0002ntfym7pgrxxj" class="article-share-link">Share</a>
+      <a data-url="https://dbaicss.github.io/2019/10/18/Scheduler源码分析-番4-抢占调度-1/" data-id="ck3sbu8zj0002qbfy3ixqn14y" class="article-share-link">Share</a>
       
       
     </footer>
@@ -340,7 +350,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://dbaicss.github.io/2019/10/17/Scheduler源码分析-番3-优选过程/" data-id="ck3sbqqqc0001ntfy9711dkk1" class="article-share-link">Share</a>
+      <a data-url="https://dbaicss.github.io/2019/10/17/Scheduler源码分析-番3-优选过程/" data-id="ck3sbu8zg0001qbfy4hxmh9ql" class="article-share-link">Share</a>
       
       
     </footer>
@@ -384,7 +394,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://dbaicss.github.io/2019/10/16/Scheduler源码分析-番2-初选过程/" data-id="ck3sbqqq70000ntfyka1pb0vp" class="article-share-link">Share</a>
+      <a data-url="https://dbaicss.github.io/2019/10/16/Scheduler源码分析-番2-初选过程/" data-id="ck3sbu8zb0000qbfy9i54umqm" class="article-share-link">Share</a>
       
       
     </footer>
@@ -426,7 +436,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://dbaicss.github.io/2019/10/15/Scheduler源码分析/" data-id="ck3sbqqqg0004ntfyskniifj6" class="article-share-link">Share</a>
+      <a data-url="https://dbaicss.github.io/2019/10/15/Scheduler源码分析/" data-id="ck3sbu8zl0004qbfy02b3jup2" class="article-share-link">Share</a>
       
       
     </footer>
