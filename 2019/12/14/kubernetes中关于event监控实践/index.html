@@ -7,18 +7,18 @@
   
   <title>kubernetes中关于event监控实践 | 皮特撸斯</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="记录各种美好">
+  <meta name="description" content="event定义1event是k8s集群中各种事件列表，包含容器事件(创建、启动、失败等)、镜像事件(镜像拉取失败等)、kubelet事件(节点失效、节点不可调度等)、Pod Worker事件(同步失败)等  event命名规则1由发生该Events的Pod名称 + &quot;.&quot; + ref.Name” + &quot;.&quot; + &quot;t.UnixNano()&quot;  event类型1234567891011121314E">
 <meta name="keywords" content="kubernetes golang go 源码">
 <meta property="og:type" content="article">
 <meta property="og:title" content="kubernetes中关于event监控实践">
 <meta property="og:url" content="https://dbaicss.github.io/2019/12/14/kubernetes中关于event监控实践/index.html">
 <meta property="og:site_name" content="皮特撸斯">
-<meta property="og:description" content="记录各种美好">
+<meta property="og:description" content="event定义1event是k8s集群中各种事件列表，包含容器事件(创建、启动、失败等)、镜像事件(镜像拉取失败等)、kubelet事件(节点失效、节点不可调度等)、Pod Worker事件(同步失败)等  event命名规则1由发生该Events的Pod名称 + &quot;.&quot; + ref.Name” + &quot;.&quot; + &quot;t.UnixNano()&quot;  event类型1234567891011121314E">
 <meta property="og:locale" content="zh-cn">
-<meta property="og:updated_time" content="2019-12-14T04:41:15.452Z">
+<meta property="og:updated_time" content="2019-12-14T04:42:32.424Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="kubernetes中关于event监控实践">
-<meta name="twitter:description" content="记录各种美好">
+<meta name="twitter:description" content="event定义1event是k8s集群中各种事件列表，包含容器事件(创建、启动、失败等)、镜像事件(镜像拉取失败等)、kubelet事件(节点失效、节点不可调度等)、Pod Worker事件(同步失败)等  event命名规则1由发生该Events的Pod名称 + &quot;.&quot; + ref.Name” + &quot;.&quot; + &quot;t.UnixNano()&quot;  event类型1234567891011121314E">
   
     <link rel="alternate" href="/atom.xml" title="皮特撸斯" type="application/atom+xml">
   
@@ -91,11 +91,21 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        
+        <h2 id="event定义"><a href="#event定义" class="headerlink" title="event定义"></a>event定义</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">event是k8s集群中各种事件列表，包含容器事件(创建、启动、失败等)、镜像事件(镜像拉取失败等)、kubelet事件(节点失效、节点不可调度等)、Pod Worker事件(同步失败)等</span><br></pre></td></tr></table></figure>
+
+<h2 id="event命名规则"><a href="#event命名规则" class="headerlink" title="event命名规则"></a>event命名规则</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">由发生该Events的Pod名称 + <span class="string">"."</span> + ref.Name” + <span class="string">"."</span> + <span class="string">"t.UnixNano()"</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="event类型"><a href="#event类型" class="headerlink" title="event类型"></a>event类型</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">Events分为两类，并定义在kubernetes/pkg/api/types.go里，分别是EventTypeNormal和EventTypeWarning，它们分别表示该Events仅表示信息，不会造成影响和可能有些地方不太对,</span><br><span class="line">对于我们监控来说，只需要关注EventTypeWarning就可以</span><br><span class="line"><span class="built_in">type</span> Event struct &#123;</span><br><span class="line">    unversioned.TypeMeta `json:<span class="string">",inline"</span>`</span><br><span class="line">    ObjectMeta           `json:<span class="string">"metadata,omitempty"</span>`</span><br><span class="line">    InvolvedObject ObjectReference `json:<span class="string">"involvedObject,omitempty"</span>`</span><br><span class="line">    Reason string `json:<span class="string">"reason,omitempty"</span>`</span><br><span class="line">    Message string `json:<span class="string">"message,omitempty"</span>`</span><br><span class="line">    Source EventSource `json:<span class="string">"source,omitempty"</span>`</span><br><span class="line">    FirstTimestamp unversioned.Time `json:<span class="string">"firstTimestamp,omitempty"</span>`</span><br><span class="line">    LastTimestamp unversioned.Time `json:<span class="string">"lastTimestamp,omitempty"</span>`</span><br><span class="line">    Count int32 `json:<span class="string">"count,omitempty"</span>`</span><br><span class="line">    Type string `json:<span class="string">"type,omitempty"</span>`</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="kubelet-describe-pod-xxxxx怎么关联对应event并输出的"><a href="#kubelet-describe-pod-xxxxx怎么关联对应event并输出的" class="headerlink" title="kubelet describe pod  xxxxx怎么关联对应event并输出的"></a>kubelet describe pod  xxxxx怎么关联对应event并输出的</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">kubelet describe pod  xxxxx底层调用了Pod的Describer接口。PodDescriber只有一个方法，那就是Describe()，实现在kubernetes/pkg/kubectl/describe.go里。</span><br><span class="line">Describe()方法首先通过namespace和name唯一确定所请求的Pod。如果出错并且ShowEvents标识为<span class="literal">true</span>的情况下，会根据FieldSelector找到Events，并说明“获取Pod出错，</span><br><span class="line">但发现了Events”。如果请求Pod未出错且ShowEvents标识为<span class="literal">true</span>，则通过GetReference()方法找到相关的Events。不管哪种方式，只要找到的Events不为空，</span><br><span class="line">总是会通过DescribeEvents()方法将Events列表按特定格式输出</span><br></pre></td></tr></table></figure>
+
+<h2 id="event在k8s中完整的生命周期"><a href="#event在k8s中完整的生命周期" class="headerlink" title="event在k8s中完整的生命周期"></a>event在k8s中完整的生命周期</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">1. kubelet和conroller manager启动的时候获取2个实例化对象，EventRecorder和EventBroadcaster，其中EventRecorder用来生成event，而EventBroadcaster用来接收Event并且把它们转交给EventSink、Watcher和Log。</span><br><span class="line">2. 对于watcher而言，eventBroadcaster会在分发Event的时候将所有的Events都送入一个ResultChan。watcher不断从ResultChan取走每个Event，如果获取过程发送错误，将Crash并记录日志。否则在获得该Events后，交于对应的处理函数进行处理。</span><br><span class="line">3.watcher通过recordEvent()方法将Event写入对应的EventSink里。在写入EventSink前，会对所有的Events根据相同或者相似进行聚合等操作。分别使用EventLogger和EventAggregator进行操作。EventLogger将相同的Event去重为1个，并通过计数表示它出现的次数。EventAggregator将对10分钟内出现10次的Event进行分组，依据是Event的Source、InvolvedObject、Type和Reason域。</span><br></pre></td></tr></table></figure>
+
+<h2 id="event监控怎么做"><a href="#event监控怎么做" class="headerlink" title="event监控怎么做"></a>event监控怎么做</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">了解到这里，基本上和event有关的背景和作用我们都清楚了，那如果我们要监控event，需要怎么做？</span><br><span class="line">很简单，watch所有的EventTypeWarning类型的event就可以满足我们的需求呢</span><br><span class="line">详情见https://github.com/dbaicss/k8sEventExporter，readme写的已经很完整了.</span><br></pre></td></tr></table></figure>
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://dbaicss.github.io/2019/12/14/kubernetes中关于event监控实践/" data-id="ck453fgdq0005w00bhz1zo5e5" class="article-share-link">Share</a>
+      <a data-url="https://dbaicss.github.io/2019/12/14/kubernetes中关于event监控实践/" data-id="ck453gnyn0006z30bjwni3975" class="article-share-link">Share</a>
       
       
     </footer>
