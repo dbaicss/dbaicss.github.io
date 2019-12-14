@@ -1,95 +1,390 @@
 <!DOCTYPE html>
-<html>
-<head><meta name="generator" content="Hexo 3.9.0">
-  <meta charset="utf-8">
-  
+
+
 
   
-  <title>Scheduler源码分析-番6-亲和性调度 | 皮特撸斯</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="亲和性简述1234一句话介绍就是按照需要将pod调度到指定的node上,称之为约束调度,一般主要有三种NodeSelector/NodeName 表示node标签选择器和nodeName匹配Affinity (Node/Pod/Service） 表示node/pod/svc的亲和性Taint/Toleration 表示污点和容忍  标签选择器1234567891011121314151617181">
-<meta name="keywords" content="kubernetes golang go 源码">
+
+
+<html class="theme-next mist use-motion" lang="zh-cn">
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="k8s,scheduler,">
+
+
+
+
+
+  <link rel="alternate" href="/atom.xml" title="皮特撸斯" type="application/atom+xml">
+
+
+
+
+
+
+<meta name="description" content="亲和性简述1234一句话介绍就是按照需要将pod调度到指定的node上,称之为约束调度,一般主要有三种NodeSelector/NodeName 表示node标签选择器和nodeName匹配Affinity (Node/Pod/Service） 表示node/pod/svc的亲和性Taint/Toleration 表示污点和容忍  标签选择器1234567891011121314151617181">
+<meta name="keywords" content="k8s,scheduler">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Scheduler源码分析-番6-亲和性调度">
 <meta property="og:url" content="https://dbaicss.github.io/2019/10/30/Scheduler源码分析-番6-亲和性调度/index.html">
 <meta property="og:site_name" content="皮特撸斯">
 <meta property="og:description" content="亲和性简述1234一句话介绍就是按照需要将pod调度到指定的node上,称之为约束调度,一般主要有三种NodeSelector/NodeName 表示node标签选择器和nodeName匹配Affinity (Node/Pod/Service） 表示node/pod/svc的亲和性Taint/Toleration 表示污点和容忍  标签选择器1234567891011121314151617181">
 <meta property="og:locale" content="zh-cn">
-<meta property="og:updated_time" content="2019-10-30T07:49:59.897Z">
+<meta property="og:updated_time" content="2019-12-14T06:05:38.476Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Scheduler源码分析-番6-亲和性调度">
 <meta name="twitter:description" content="亲和性简述1234一句话介绍就是按照需要将pod调度到指定的node上,称之为约束调度,一般主要有三种NodeSelector/NodeName 表示node标签选择器和nodeName匹配Affinity (Node/Pod/Service） 表示node/pod/svc的亲和性Taint/Toleration 表示污点和容忍  标签选择器1234567891011121314151617181">
-  
-    <link rel="alternate" href="/atom.xml" title="皮特撸斯" type="application/atom+xml">
-  
-  
-    <link rel="icon" href="/favicon.png">
-  
-  
-    <link href="//fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet" type="text/css">
-  
-  <link rel="stylesheet" href="/css/style.css">
-</head>
-</html>
-<body>
-  <div id="container">
-    <div id="wrap">
-      <header id="header">
-  <div id="banner"></div>
-  <div id="header-outer" class="outer">
-    <div id="header-title" class="inner">
-      <h1 id="logo-wrap">
-        <a href="/" id="logo">皮特撸斯</a>
-      </h1>
-      
-        <h2 id="subtitle-wrap">
-          <a href="/" id="subtitle">做正确的事</a>
-        </h2>
-      
-    </div>
-    <div id="header-inner" class="inner">
-      <nav id="main-nav">
-        <a id="main-nav-toggle" class="nav-icon"></a>
-        
-          <a class="main-nav-link" href="/">Home</a>
-        
-          <a class="main-nav-link" href="/archives">Archives</a>
-        
-      </nav>
-      <nav id="sub-nav">
-        
-          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
-        
-        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
-      </nav>
-      <div id="search-form-wrap">
-        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://dbaicss.github.io"></form>
-      </div>
-    </div>
-  </div>
-</header>
-      <div class="outer">
-        <section id="main"><article id="post-Scheduler源码分析-番6-亲和性调度" class="article article-type-post" itemscope itemprop="blogPost">
-  <div class="article-meta">
-    <a href="/2019/10/30/Scheduler源码分析-番6-亲和性调度/" class="article-date">
-  <time datetime="2019-10-30T06:11:53.000Z" itemprop="datePublished">2019-10-30</time>
-</a>
-    
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 class="article-title" itemprop="name">
-      Scheduler源码分析-番6-亲和性调度
-    </h1>
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"hide","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: 'Author'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://dbaicss.github.io/2019/10/30/Scheduler源码分析-番6-亲和性调度/">
+
+
+
+
+
+  <title>Scheduler源码分析-番6-亲和性调度 | 皮特撸斯</title>
   
 
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-cn">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">皮特撸斯</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <h1 class="site-subtitle" itemprop="description">做正确的事</h1>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            Home
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br>
+            
+            About
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            Tags
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br>
+            
+            Categories
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            Archives
+          </a>
+        </li>
+      
+
+      
+        <li class="menu-item menu-item-search">
+          
+            <a href="javascript:;" class="popup-trigger">
+          
+            
+              <i class="menu-item-icon fa fa-search fa-fw"></i> <br>
+            
+            Search
+          </a>
+        </li>
+      
+    </ul>
+  
+
+  
+    <div class="site-search">
+      
+  <div class="popup search-popup local-search-popup">
+  <div class="local-search-header clearfix">
+    <span class="search-icon">
+      <i class="fa fa-search"></i>
+    </span>
+    <span class="popup-btn-close">
+      <i class="fa fa-times-circle"></i>
+    </span>
+    <div class="local-search-input-wrapper">
+      <input autocomplete="off" placeholder="Searching..." spellcheck="false" type="text" id="local-search-input">
+    </div>
+  </div>
+  <div id="local-search-result"></div>
+</div>
+
+
+
+    </div>
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://dbaicss.github.io/2019/10/30/Scheduler源码分析-番6-亲和性调度/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="dbaicss">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="皮特撸斯">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h2 class="post-title" itemprop="name headline">Scheduler源码分析-番6-亲和性调度</h2>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2019-10-30T14:11:53+08:00">
+                2019-10-30
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">In</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/k8s源码分析/" itemprop="url" rel="index">
+                    <span itemprop="name">k8s源码分析</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
       </header>
     
-    <div class="article-entry" itemprop="articleBody">
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
       
         <h2 id="亲和性简述"><a href="#亲和性简述" class="headerlink" title="亲和性简述"></a>亲和性简述</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">一句话介绍就是按照需要将pod调度到指定的node上,称之为约束调度,一般主要有三种</span><br><span class="line">NodeSelector/NodeName 表示node标签选择器和nodeName匹配</span><br><span class="line">Affinity (Node/Pod/Service） 表示node/pod/svc的亲和性</span><br><span class="line">Taint/Toleration 表示污点和容忍</span><br></pre></td></tr></table></figure>
 
@@ -102,122 +397,744 @@
 <h2 id="service亲和性"><a href="#service亲和性" class="headerlink" title="service亲和性"></a>service亲和性</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br></pre></td><td class="code"><pre><span class="line">简单介绍就是如果一个服务的第一个Pod被调度到带有Label<span class="string">"region=foo"</span>的Node上,那么该服务后续其它Pod都将调度至Label<span class="string">"region=foo"</span>的Node上</span><br><span class="line">Serice亲和性预选策略checkServiceAffinity,通过NewServiceAffinityPredicate()创建一个ServiceAffinity类对象，并返回两个预选策略所必须的处理Func:</span><br><span class="line">(1).affinity.checkServiceAffinity 基于预选元数据Meta，对被调度的pod检测Node是否满足服务亲和性.</span><br><span class="line">(2).affinity.serverAffinityMetadataProducer 基于预选Meta的pod信息，获取服务信息和在相同NameSpace下的的Pod列表，供亲和检测时使用</span><br><span class="line">详细看下源码</span><br><span class="line">func NewServiceAffinityPredicate(podLister algorithm.PodLister, serviceLister algorithm.ServiceLister, nodeInfo NodeInfo, labels []string) (FitPredicate, predicateMetadataProducer) &#123;</span><br><span class="line">	affinity := &amp;ServiceAffinity&#123;</span><br><span class="line">		podLister:     podLister,</span><br><span class="line">		serviceLister: serviceLister,</span><br><span class="line">		nodeInfo:      nodeInfo,</span><br><span class="line">		labels:        labels,</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="built_in">return</span> affinity.checkServiceAffinity, affinity.serviceAffinityMetadataProducer</span><br><span class="line">&#125;</span><br><span class="line">affinity.serverAffinityMetadataProducer()输入:predicateMateData,返回:services和pods</span><br><span class="line">①基于预选MetaData的pod信息查询出services</span><br><span class="line">②基于预选MetaData的pod Lables获取所有匹配的pods,并且过滤掉不在同一个Namespace的pods</span><br><span class="line">func (s *ServiceAffinity) serviceAffinityMetadataProducer(pm *predicateMetadata) &#123;</span><br><span class="line">	<span class="keyword">if</span> pm.pod == nil &#123;</span><br><span class="line">		klog.Errorf(<span class="string">"Cannot precompute service affinity, a pod is required to calculate service affinity."</span>)</span><br><span class="line">		<span class="built_in">return</span></span><br><span class="line">	&#125;</span><br><span class="line">	//基于预选MetaData的pod信息查询services</span><br><span class="line">	matchingPodServices, err := s.serviceLister.GetPodServices(pm.pod)</span><br><span class="line">	<span class="keyword">if</span> err != nil &#123;</span><br><span class="line">		klog.Errorf(<span class="string">"Error precomputing service affinity: could not list services: %v"</span>, err)</span><br><span class="line">	&#125;</span><br><span class="line">	//基于预选MetaData的pod Lables获取所有匹配的pods</span><br><span class="line">	selector := CreateSelectorFromLabels(pm.pod.Labels)</span><br><span class="line">	allMatches, err := s.podLister.List(selector)</span><br><span class="line">	<span class="keyword">if</span> err != nil &#123;</span><br><span class="line">		klog.Errorf(<span class="string">"Error precomputing service affinity: could not list pods: %v"</span>, err)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	//过滤掉不在同一个Namespace的pods</span><br><span class="line">	matchingPodList := FilterPodsByNamespace(allMatches, pm.pod.Namespace)</span><br><span class="line">	pm.serviceAffinityMetadata = &amp;serviceAffinityMetadata&#123;</span><br><span class="line">		matchingPodList:     matchingPodList,</span><br><span class="line">		matchingPodServices: matchingPodServices,</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line">另外一个affinity.checkServiceAffinity()基于预处理的MetaData,对被调度的pod检测Node是否满足服务亲和性</span><br><span class="line">func (s *ServiceAffinity) checkServiceAffinity(pod *v1.Pod, meta PredicateMetadata, nodeInfo *schedulernodeinfo.NodeInfo) (bool, []PredicateFailureReason, error) &#123;</span><br><span class="line">	var services []*v1.Service</span><br><span class="line">	var pods []*v1.Pod</span><br><span class="line">	<span class="keyword">if</span> pm, ok := meta.(*predicateMetadata); ok &amp;&amp; pm.serviceAffinityMetadata != nil &amp;&amp; (pm.serviceAffinityMetadata.matchingPodList != nil || pm.serviceAffinityMetadata.matchingPodServices != nil) &#123;</span><br><span class="line">		services = pm.serviceAffinityMetadata.matchingPodServices</span><br><span class="line">		pods = pm.serviceAffinityMetadata.matchingPodList</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		// Make the predicate resilient <span class="keyword">in</span> <span class="keyword">case</span> metadata is missing.</span><br><span class="line">		pm = &amp;predicateMetadata&#123;pod: pod&#125;</span><br><span class="line">		s.serviceAffinityMetadataProducer(pm)</span><br><span class="line">		pods, services = pm.serviceAffinityMetadata.matchingPodList, pm.serviceAffinityMetadata.matchingPodServices</span><br><span class="line">	&#125;</span><br><span class="line">	//筛掉存在于Node(nodeinfo)上pods，且与podKey比对不相等的pods</span><br><span class="line">	filteredPods := nodeInfo.FilterOutPods(pods)</span><br><span class="line">	node := nodeInfo.Node()</span><br><span class="line">	<span class="keyword">if</span> node == nil &#123;</span><br><span class="line">		<span class="built_in">return</span> <span class="literal">false</span>, nil, fmt.Errorf(<span class="string">"node not found"</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	// affinityLabes交集 ==（A ∩ B） </span><br><span class="line">  	// A：被调度pod的NodeSelector定义  B：定义的亲和性Labels</span><br><span class="line">	affinityLabels := FindLabelsInSet(s.labels, labels.Set(pod.Spec.NodeSelector))</span><br><span class="line">	<span class="keyword">if</span> len(s.labels) &gt; len(affinityLabels) &#123;</span><br><span class="line">		<span class="keyword">if</span> len(services) &gt; 0 &#123;</span><br><span class="line">			<span class="keyword">if</span> len(filteredPods) &gt; 0 &#123;</span><br><span class="line">				/被选定的亲和Node</span><br><span class="line">        		//基于第一个filteredPods获取Node信息</span><br><span class="line">				nodeWithAffinityLabels, err := s.nodeInfo.GetNodeInfo(filteredPods[0].Spec.NodeName)</span><br><span class="line">				<span class="keyword">if</span> err != nil &#123;</span><br><span class="line">					<span class="built_in">return</span> <span class="literal">false</span>, nil, err</span><br><span class="line">				&#125;</span><br><span class="line">				/ 输入:交集Labels、服务亲和Labels、被选出的亲和Node Lables</span><br><span class="line">                // affinityLabels = affinityLabels + 交集（B ∩ C）</span><br><span class="line">                // B: 服务亲和Labels  C:被选出的亲和Node的Lables </span><br><span class="line">				AddUnsetLabelsToMap(affinityLabels, s.labels, labels.Set(nodeWithAffinityLabels.Labels))</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	//最终的匹配(affinityLabels与被检测亲和的node.Labels)</span><br><span class="line">	<span class="keyword">if</span> CreateSelectorFromLabels(affinityLabels).Matches(labels.Set(node.Labels)) &#123;</span><br><span class="line">		<span class="built_in">return</span> <span class="literal">true</span>, nil, nil</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="built_in">return</span> <span class="literal">false</span>, []PredicateFailureReason&#123;ErrServiceAffinityViolated&#125;, nil</span><br><span class="line">&#125;</span><br><span class="line">FilterOutPods()筛选掉存在于Node(nodeinfo)上pods,且与podKey比对不相等的pods,filteredPods=未在Node上的pods+在node上且podKey相同的pods</span><br><span class="line">func (n *NodeInfo) FilterOutPods(pods []*v1.Pod) []*v1.Pod &#123;</span><br><span class="line">	//获取Node的详细信息</span><br><span class="line">	node := n.Node()</span><br><span class="line">	<span class="keyword">if</span> node == nil &#123;</span><br><span class="line">		<span class="built_in">return</span> pods</span><br><span class="line">	&#125;</span><br><span class="line">	filtered := make([]*v1.Pod, 0, len(pods))</span><br><span class="line">	<span class="keyword">for</span> _, p := range pods &#123;</span><br><span class="line">		//pod(亲和matched)的NodeName不等于Spec配置的nodeName(即pod不在此Node上),将pod放入filtered</span><br><span class="line">		<span class="keyword">if</span> p.Spec.NodeName != node.Name &#123;</span><br><span class="line">			filtered = append(filtered, p)</span><br><span class="line">			<span class="built_in">continue</span></span><br><span class="line">		&#125;</span><br><span class="line">		//如果在此Node上，则获取podKey(pod.UID)</span><br><span class="line">        //遍历此Node上所有的目标Pods，获取每个podKey与待匹配pod的podkey判断是否相同，</span><br><span class="line">    	//相同则将pod放入filtered并返回</span><br><span class="line">		podKey, err := GetPodKey(p)</span><br><span class="line">		<span class="keyword">if</span> err != nil &#123;</span><br><span class="line">			<span class="built_in">continue</span></span><br><span class="line">		&#125;</span><br><span class="line">		<span class="keyword">for</span> _, np := range n.<span class="function"><span class="title">Pods</span></span>() &#123;</span><br><span class="line">			npodkey, _ := GetPodKey(np)</span><br><span class="line">			<span class="keyword">if</span> npodkey == podKey &#123;</span><br><span class="line">				filtered = append(filtered, p)</span><br><span class="line">				<span class="built_in">break</span></span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="built_in">return</span> filtered</span><br><span class="line">&#125;</span><br><span class="line">FindLabelsInSet()参数一:(B)定义的亲和性Labels配置,参数二:(A)被调度pod的定义NodeSelector配置Selector,检测存在的于NodeSelector的亲和性Labels配置,则取两者的交集部分,即A∩B</span><br><span class="line">func FindLabelsInSet(labelsToKeep []string, selector labels.Set) map[string]string &#123;</span><br><span class="line">	aL := make(map[string]string)</span><br><span class="line">	<span class="keyword">for</span> _, l := range labelsToKeep &#123;</span><br><span class="line">		<span class="keyword">if</span> selector.Has(l) &#123;</span><br><span class="line">			aL[l] = selector.Get(l)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="built_in">return</span> aL</span><br><span class="line">&#125;</span><br><span class="line">AddUnsetLabelsToMap(),参数一:(N)在FindLabelsInSet()计算出来的交集Labels;参数二:(B)定义的亲和性Labels配置;参数三:(C)被选出的亲和Node上的Lables检测存在的于被选出的亲和Node上的亲和性配置Labels,则取两者的交集部分存放至N(B∩C)=&gt;N</span><br><span class="line">func AddUnsetLabelsToMap(aL map[string]string, labelsToAdd []string, labelSet labels.Set) &#123;</span><br><span class="line">	//输入:交集Labels、服务亲和Labels、被选出的亲和Node Lables</span><br><span class="line">	//填充:Labels交集==(B∩C),B:服务亲和Labels,C:被选出的亲和Node Lables</span><br><span class="line">	<span class="keyword">for</span> _, l := range labelsToAdd &#123;</span><br><span class="line">		//如果存在则不作任何操作</span><br><span class="line">		<span class="keyword">if</span> _, exists := aL[l]; exists &#123;</span><br><span class="line">			<span class="built_in">continue</span></span><br><span class="line">		&#125;</span><br><span class="line">		//反之,计算包含的交集部分C∩B</span><br><span class="line">		<span class="keyword">if</span> labelSet.Has(l) &#123;</span><br><span class="line">			aL[l] = labelSet.Get(l)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line">CreateSelectorFromLabels().Match(),返回labels.Selector对象</span><br><span class="line">func CreateSelectorFromLabels(aL map[string]string) labels.Selector &#123;</span><br><span class="line">	<span class="keyword">if</span> aL == nil || len(aL) == 0 &#123;</span><br><span class="line">		<span class="built_in">return</span> labels.Everything()</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="built_in">return</span> labels.Set(aL).AsSelector()</span><br><span class="line">&#125;</span><br><span class="line">ok,到这里基本亲和性调度有关的内容都结束了</span><br></pre></td></tr></table></figure>
       
     </div>
-    <footer class="article-footer">
-      <a data-url="https://dbaicss.github.io/2019/10/30/Scheduler源码分析-番6-亲和性调度/" data-id="ck453jgdc00091u0b35i5w6bg" class="article-share-link">Share</a>
+    
+    
+    
+
+    
+      <div>
+          <div>  <div style="text-align:center;color: #ccc;font-size:14px;">-------------本文结束<i class="fa fa-smile-o"></i>感谢您的阅读-------------</div>  </div>
+
+      </div>
+    
+
+
+    
+
+    
+      <div>
+        <div style="padding: 10px 0; margin: 20px auto; width: 90%; text-align: center;">
+  <div>谢谢各位看官老爷,您的支持和鼓励是我继续写下去的动力!!</div>
+  <button id="rewardButton" disable="enable" style="width: 80px;line-height: 38px;text-align: center;font-weight: bold;color: #fff;border-radius: 5px;
+margin:0 20px 20px 0;position: relative;overflow: hidden;color: #8c96a0;text-shadow:1px 1px 1px #fff;border:1px solid #dce1e6;box-shadow: 0 1px 2px #fff inset,0 -1px 0 #a8abae inset;background: -webkit-linear-gradient(top,#f2f3f7,#e4e8ec);background: -moz-linear-gradient(top,#f2f3f7,#e4e8ec);background: linear-gradient(top,#f2f3f7,#e4e8ec);" onclick="var qr = document.getElementById('QR'); if (qr.style.display === 'none') {qr.style.display='block';} else {qr.style.display='none'}">
+    打赏
+  </button>
+  <div id="QR" style="display: none;">
+    
+      <div id="wechat" style="display: inline-block;width:150px;height:150px">
+        <img id="wechat_qr" src="/images/wechatpay.jpeg" alt="dbaicss WeChat Pay">
+        <p>WeChat Pay</p>
+      </div>
+    
+  </div>
+</div>
+
+      </div>
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/k8s/" rel="tag"># k8s</a>
+          
+            <a href="/tags/scheduler/" rel="tag"># scheduler</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/10/24/Scheduler源码分析-番5-初始化-2/" rel="next" title="Scheduler源码分析-番5-初始化-2">
+                <i class="fa fa-chevron-left"></i> Scheduler源码分析-番5-初始化-2
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/12/05/基于prometheus-grafana实现监控告警/" rel="prev" title="基于prometheus+grafana实现监控告警">
+                基于prometheus+grafana实现监控告警 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
       
       
     </footer>
   </div>
   
-    
-<nav id="article-nav">
   
-    <a href="/2019/12/05/基于prometheus-grafana实现监控告警/" id="article-nav-newer" class="article-nav-link-wrap">
-      <strong class="article-nav-caption">Newer</strong>
-      <div class="article-nav-title">
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
         
-          基于prometheus+grafana实现监控告警
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            Table of Contents
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            Overview
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">dbaicss</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">10</span>
+                  <span class="site-state-item-name">posts</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-name">categories</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">5</span>
+                  <span class="site-state-item-name">tags</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+            <div class="feed-link motion-element">
+              <a href="/atom.xml" rel="alternate">
+                <i class="fa fa-rss"></i>
+                RSS
+              </a>
+            </div>
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/dbaicss" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#亲和性简述"><span class="nav-number">1.</span> <span class="nav-text">亲和性简述</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#标签选择器"><span class="nav-number">2.</span> <span class="nav-text">标签选择器</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#node亲和性"><span class="nav-number">3.</span> <span class="nav-text">node亲和性</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#pod亲和性"><span class="nav-number">4.</span> <span class="nav-text">pod亲和性</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#service亲和性"><span class="nav-number">5.</span> <span class="nav-text">service亲和性</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
         
       </div>
-    </a>
-  
-  
-    <a href="/2019/10/24/Scheduler源码分析-番5-初始化-2/" id="article-nav-older" class="article-nav-link-wrap">
-      <strong class="article-nav-caption">Older</strong>
-      <div class="article-nav-title">Scheduler源码分析-番5-初始化-2</div>
-    </a>
-  
-</nav>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">dbaicss</span>
 
   
-</article>
-
-</section>
-        
-          <aside id="sidebar">
-  
-    
-
-  
-    
-
-  
-    
-  
-    
-  <div class="widget-wrap">
-    <h3 class="widget-title">Archives</h3>
-    <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/12/">十二月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/10/">十月 2019</a></li></ul>
-    </div>
-  </div>
+</div>
 
 
-  
-    
-  <div class="widget-wrap">
-    <h3 class="widget-title">Recent Posts</h3>
-    <div class="widget">
-      <ul>
-        
-          <li>
-            <a href="/2019/12/14/kubernetes中关于event监控实践/">kubernetes中关于event监控实践</a>
-          </li>
-        
-          <li>
-            <a href="/2019/12/05/基于prometheus-grafana实现监控告警/">基于prometheus+grafana实现监控告警</a>
-          </li>
-        
-          <li>
-            <a href="/2019/10/30/Scheduler源码分析-番6-亲和性调度/">Scheduler源码分析-番6-亲和性调度</a>
-          </li>
-        
-          <li>
-            <a href="/2019/10/24/Scheduler源码分析-番5-初始化-2/">Scheduler源码分析-番5-初始化-2</a>
-          </li>
-        
-          <li>
-            <a href="/2019/10/22/Scheduler源码分析-番5-初始化/">Scheduler源码分析-番5-初始化</a>
-          </li>
-        
-      </ul>
-    </div>
-  </div>
+  <div class="powered-by">Powered by <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a></div>
 
-  
-</aside>
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">Theme &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Mist</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
         
       </div>
-      <footer id="footer">
-  
-  <div class="outer">
-    <div id="footer-info" class="inner">
-      &copy; 2019 dbaicss<br>
-      Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>
-    </div>
-  </div>
-</footer>
-    </div>
-    <nav id="mobile-nav">
-  
-    <a href="/" class="mobile-nav-link">Home</a>
-  
-    <a href="/archives" class="mobile-nav-link">Archives</a>
-  
-</nav>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
     
 
-<script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
-
-
-  <link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
-  <script src="/fancybox/jquery.fancybox.pack.js"></script>
-
-
-<script src="/js/script.js"></script>
-
-
+    
 
   </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  <script type="text/javascript">
+    // Popup Window;
+    var isfetched = false;
+    var isXml = true;
+    // Search DB path;
+    var search_path = "search.xml";
+    if (search_path.length === 0) {
+      search_path = "search.xml";
+    } else if (/json$/i.test(search_path)) {
+      isXml = false;
+    }
+    var path = "/" + search_path;
+    // monitor main search box;
+
+    var onPopupClose = function (e) {
+      $('.popup').hide();
+      $('#local-search-input').val('');
+      $('.search-result-list').remove();
+      $('#no-result').remove();
+      $(".local-search-pop-overlay").remove();
+      $('body').css('overflow', '');
+    }
+
+    function proceedsearch() {
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay"></div>')
+        .css('overflow', 'hidden');
+      $('.search-popup-overlay').click(onPopupClose);
+      $('.popup').toggle();
+      var $localSearchInput = $('#local-search-input');
+      $localSearchInput.attr("autocapitalize", "none");
+      $localSearchInput.attr("autocorrect", "off");
+      $localSearchInput.focus();
+    }
+
+    // search function;
+    var searchFunc = function(path, search_id, content_id) {
+      'use strict';
+
+      // start loading animation
+      $("body")
+        .append('<div class="search-popup-overlay local-search-pop-overlay">' +
+          '<div id="search-loading-icon">' +
+          '<i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>' +
+          '</div>' +
+          '</div>')
+        .css('overflow', 'hidden');
+      $("#search-loading-icon").css('margin', '20% auto 0 auto').css('text-align', 'center');
+
+      $.ajax({
+        url: path,
+        dataType: isXml ? "xml" : "json",
+        async: true,
+        success: function(res) {
+          // get the contents from search data
+          isfetched = true;
+          $('.popup').detach().appendTo('.header-inner');
+          var datas = isXml ? $("entry", res).map(function() {
+            return {
+              title: $("title", this).text(),
+              content: $("content",this).text(),
+              url: $("url" , this).text()
+            };
+          }).get() : res;
+          var input = document.getElementById(search_id);
+          var resultContent = document.getElementById(content_id);
+          var inputEventFunction = function() {
+            var searchText = input.value.trim().toLowerCase();
+            var keywords = searchText.split(/[\s\-]+/);
+            if (keywords.length > 1) {
+              keywords.push(searchText);
+            }
+            var resultItems = [];
+            if (searchText.length > 0) {
+              // perform local searching
+              datas.forEach(function(data) {
+                var isMatch = false;
+                var hitCount = 0;
+                var searchTextCount = 0;
+                var title = data.title.trim();
+                var titleInLowerCase = title.toLowerCase();
+                var content = data.content.trim().replace(/<[^>]+>/g,"");
+                var contentInLowerCase = content.toLowerCase();
+                var articleUrl = decodeURIComponent(data.url);
+                var indexOfTitle = [];
+                var indexOfContent = [];
+                // only match articles with not empty titles
+                if(title != '') {
+                  keywords.forEach(function(keyword) {
+                    function getIndexByWord(word, text, caseSensitive) {
+                      var wordLen = word.length;
+                      if (wordLen === 0) {
+                        return [];
+                      }
+                      var startPosition = 0, position = [], index = [];
+                      if (!caseSensitive) {
+                        text = text.toLowerCase();
+                        word = word.toLowerCase();
+                      }
+                      while ((position = text.indexOf(word, startPosition)) > -1) {
+                        index.push({position: position, word: word});
+                        startPosition = position + wordLen;
+                      }
+                      return index;
+                    }
+
+                    indexOfTitle = indexOfTitle.concat(getIndexByWord(keyword, titleInLowerCase, false));
+                    indexOfContent = indexOfContent.concat(getIndexByWord(keyword, contentInLowerCase, false));
+                  });
+                  if (indexOfTitle.length > 0 || indexOfContent.length > 0) {
+                    isMatch = true;
+                    hitCount = indexOfTitle.length + indexOfContent.length;
+                  }
+                }
+
+                // show search results
+
+                if (isMatch) {
+                  // sort index by position of keyword
+
+                  [indexOfTitle, indexOfContent].forEach(function (index) {
+                    index.sort(function (itemLeft, itemRight) {
+                      if (itemRight.position !== itemLeft.position) {
+                        return itemRight.position - itemLeft.position;
+                      } else {
+                        return itemLeft.word.length - itemRight.word.length;
+                      }
+                    });
+                  });
+
+                  // merge hits into slices
+
+                  function mergeIntoSlice(text, start, end, index) {
+                    var item = index[index.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    var hits = [];
+                    var searchTextCountInSlice = 0;
+                    while (position + word.length <= end && index.length != 0) {
+                      if (word === searchText) {
+                        searchTextCountInSlice++;
+                      }
+                      hits.push({position: position, length: word.length});
+                      var wordEnd = position + word.length;
+
+                      // move to next position of hit
+
+                      index.pop();
+                      while (index.length != 0) {
+                        item = index[index.length - 1];
+                        position = item.position;
+                        word = item.word;
+                        if (wordEnd > position) {
+                          index.pop();
+                        } else {
+                          break;
+                        }
+                      }
+                    }
+                    searchTextCount += searchTextCountInSlice;
+                    return {
+                      hits: hits,
+                      start: start,
+                      end: end,
+                      searchTextCount: searchTextCountInSlice
+                    };
+                  }
+
+                  var slicesOfTitle = [];
+                  if (indexOfTitle.length != 0) {
+                    slicesOfTitle.push(mergeIntoSlice(title, 0, title.length, indexOfTitle));
+                  }
+
+                  var slicesOfContent = [];
+                  while (indexOfContent.length != 0) {
+                    var item = indexOfContent[indexOfContent.length - 1];
+                    var position = item.position;
+                    var word = item.word;
+                    // cut out 100 characters
+                    var start = position - 20;
+                    var end = position + 80;
+                    if(start < 0){
+                      start = 0;
+                    }
+                    if (end < position + word.length) {
+                      end = position + word.length;
+                    }
+                    if(end > content.length){
+                      end = content.length;
+                    }
+                    slicesOfContent.push(mergeIntoSlice(content, start, end, indexOfContent));
+                  }
+
+                  // sort slices in content by search text's count and hits' count
+
+                  slicesOfContent.sort(function (sliceLeft, sliceRight) {
+                    if (sliceLeft.searchTextCount !== sliceRight.searchTextCount) {
+                      return sliceRight.searchTextCount - sliceLeft.searchTextCount;
+                    } else if (sliceLeft.hits.length !== sliceRight.hits.length) {
+                      return sliceRight.hits.length - sliceLeft.hits.length;
+                    } else {
+                      return sliceLeft.start - sliceRight.start;
+                    }
+                  });
+
+                  // select top N slices in content
+
+                  var upperBound = parseInt('1');
+                  if (upperBound >= 0) {
+                    slicesOfContent = slicesOfContent.slice(0, upperBound);
+                  }
+
+                  // highlight title and content
+
+                  function highlightKeyword(text, slice) {
+                    var result = '';
+                    var prevEnd = slice.start;
+                    slice.hits.forEach(function (hit) {
+                      result += text.substring(prevEnd, hit.position);
+                      var end = hit.position + hit.length;
+                      result += '<b class="search-keyword">' + text.substring(hit.position, end) + '</b>';
+                      prevEnd = end;
+                    });
+                    result += text.substring(prevEnd, slice.end);
+                    return result;
+                  }
+
+                  var resultItem = '';
+
+                  if (slicesOfTitle.length != 0) {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + highlightKeyword(title, slicesOfTitle[0]) + "</a>";
+                  } else {
+                    resultItem += "<li><a href='" + articleUrl + "' class='search-result-title'>" + title + "</a>";
+                  }
+
+                  slicesOfContent.forEach(function (slice) {
+                    resultItem += "<a href='" + articleUrl + "'>" +
+                      "<p class=\"search-result\">" + highlightKeyword(content, slice) +
+                      "...</p>" + "</a>";
+                  });
+
+                  resultItem += "</li>";
+                  resultItems.push({
+                    item: resultItem,
+                    searchTextCount: searchTextCount,
+                    hitCount: hitCount,
+                    id: resultItems.length
+                  });
+                }
+              })
+            };
+            if (keywords.length === 1 && keywords[0] === "") {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-search fa-5x" /></div>'
+            } else if (resultItems.length === 0) {
+              resultContent.innerHTML = '<div id="no-result"><i class="fa fa-frown-o fa-5x" /></div>'
+            } else {
+              resultItems.sort(function (resultLeft, resultRight) {
+                if (resultLeft.searchTextCount !== resultRight.searchTextCount) {
+                  return resultRight.searchTextCount - resultLeft.searchTextCount;
+                } else if (resultLeft.hitCount !== resultRight.hitCount) {
+                  return resultRight.hitCount - resultLeft.hitCount;
+                } else {
+                  return resultRight.id - resultLeft.id;
+                }
+              });
+              var searchResultList = '<ul class=\"search-result-list\">';
+              resultItems.forEach(function (result) {
+                searchResultList += result.item;
+              })
+              searchResultList += "</ul>";
+              resultContent.innerHTML = searchResultList;
+            }
+          }
+
+          if ('auto' === 'auto') {
+            input.addEventListener('input', inputEventFunction);
+          } else {
+            $('.search-icon').click(inputEventFunction);
+            input.addEventListener('keypress', function (event) {
+              if (event.keyCode === 13) {
+                inputEventFunction();
+              }
+            });
+          }
+
+          // remove loading animation
+          $(".local-search-pop-overlay").remove();
+          $('body').css('overflow', '');
+
+          proceedsearch();
+        }
+      });
+    }
+
+    // handle and trigger popup window;
+    $('.popup-trigger').click(function(e) {
+      e.stopPropagation();
+      if (isfetched === false) {
+        searchFunc(path, 'local-search-input', 'local-search-result');
+      } else {
+        proceedsearch();
+      };
+    });
+
+    $('.popup-btn-close').click(onPopupClose);
+    $('.popup').click(function(e){
+      e.stopPropagation();
+    });
+    $(document).on('keyup', function (event) {
+      var shouldDismissSearchPopup = event.which === 27 &&
+        $('.search-popup').is(':visible');
+      if (shouldDismissSearchPopup) {
+        onPopupClose();
+      }
+    });
+  </script>
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
 </body>
 </html>
