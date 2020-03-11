@@ -22,15 +22,6 @@
       </tags>
   </entry>
   <entry>
-    <title>Deployment-controller源码分析</title>
-    <url>/2020/01/26/Deployment-controller%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/</url>
-    <content><![CDATA[<h3 id="deployment的功能"><a href="#deployment的功能" class="headerlink" title="deployment的功能"></a>deployment的功能</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">deployment controller是deployment资源的控制器,一般用来处理无状态的服务类型,通过DeploymentInformer,ReplicasetInformer,PodInformer监听对应的三种资源,当资源发生变化的时候,出发Deployment Controller中的syncloop操作,直到最终状态符合预期</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">对于 deployment 的删除、暂停恢复、扩缩容以及更新操作都是在 syncDeployment 方法中进行处理的，最终是通过调用 syncStatusOnly、</span><br><span class="line">sync rollback、rolloutRecreate、rolloutRolling 这几个方法来处理的，其中 syncStatusOnly 和 sync 都是更新 Deployment 的 Status，rollback 是用来回滚的，rolloutRecreate 和 rolloutRolling 是根据不同的更新策略来更新 Deployment 的，下面就来看看这些操作的具体实现。</span><br></pre></td></tr></table></figure>
-
-]]></content>
-  </entry>
-  <entry>
     <title>kubernetes中关于event监控实践</title>
     <url>/2019/12/14/kubernetes%E4%B8%AD%E5%85%B3%E4%BA%8Eevent%E7%9B%91%E6%8E%A7%E5%AE%9E%E8%B7%B5/</url>
     <content><![CDATA[<h3 id="event定义"><a href="#event定义" class="headerlink" title="event定义"></a>event定义</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">event是k8s集群中各种事件列表，包含容器事件(创建、启动、失败等)、镜像事件(镜像拉取失败等)、kubelet事件(节点失效、节点不可调度等)、Pod Worker事件(同步失败)等</span><br></pre></td></tr></table></figure>
