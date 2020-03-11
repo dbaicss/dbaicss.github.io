@@ -297,6 +297,286 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://dbaicss.github.io/2020/03/07/k8s-Service源码分析/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="dbaicss">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="皮特撸斯">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h2 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2020/03/07/k8s-Service源码分析/" itemprop="url">k8s-Service源码分析</a></h2>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-03-07T10:35:46+08:00">
+                2020-03-07
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">In</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/k8s源码分析/" itemprop="url" rel="index">
+                    <span itemprop="name">k8s源码分析</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="service作用"><a href="#service作用" class="headerlink" title="service作用"></a>service作用</h2><figure class="highlight dockerfile"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">一句话总结就是实现k8s中服务发现,屏蔽掉pod ip会漂移的问题.它是一组相同pod <span class="keyword">label</span><span class="bash">集合的抽象</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="service原理"><a href="#service原理" class="headerlink" title="service原理"></a>service原理</h2><figure class="highlight less"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">!<span class="selector-attr">[]</span>(/images/service.jpg)</span><br></pre></td></tr></table></figure>
+
+<h2 id="service负载均衡机制"><a href="#service负载均衡机制" class="headerlink" title="service负载均衡机制"></a>service负载均衡机制</h2><figure class="highlight angelscript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">service常见的负载均衡机制主要有<span class="number">4</span>种</span><br><span class="line"><span class="number">1.</span>userspace</span><br><span class="line">需要多次内核态到用户态的转换,转发效率低下</span><br><span class="line"><span class="number">2.</span>iptables</span><br><span class="line">通过dnat的方式实现service到pod地址流量转发</span><br><span class="line">优点:</span><br><span class="line">只有一次内核态到用户态的转换,转发效率比较高</span><br><span class="line">缺点:</span><br><span class="line">iptables底层是链表,当svc条目多,需要维护的iptable规则多的时候,增删改查性能会大幅下降;</span><br><span class="line">iptables转发流量只支持随机,轮询等简单的负载均衡算法</span><br><span class="line">iptables不支持<span class="number">7</span>层的健康检查,会话保持,连接重试等功能</span><br><span class="line"><span class="number">3.</span>ipvs</span><br><span class="line">通过dnat的方式实现service到pod地址流量转发</span><br><span class="line">优点:</span><br><span class="line">工作在内核态,转发效率高;</span><br><span class="line">底层是哈希表,ipvs通过ipset组件来管理和存储iptable规则,并不会直接增加iptable表,svc条目多的</span><br><span class="line">时候不会造成性能下降,理论上可以无限扩展;</span><br><span class="line">支持dh,sh,sed等更为复杂的负载均衡算法;</span><br><span class="line">支持健康检查,会话保持等<span class="number">7</span>层功能</span><br><span class="line">缺点:</span><br><span class="line">ipvs在snat,nodeport等场景还是使用iptable转发实现,linux kernel原生只支持dnat;</span><br><span class="line">ipvs模式下,滚动更新pod的场景下,conn_track表会复用之前记录的dnat记录,导致流量还是转发到之前老的pod里面</span><br><span class="line"><span class="number">4.</span>kernelspace</span><br><span class="line">主要使用在windows</span><br></pre></td></tr></table></figure>
+
+<h2 id="service类型"><a href="#service类型" class="headerlink" title="service类型"></a>service类型</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">service支持的类型主要是kubernetes中服务暴露的方式</span><br><span class="line">1.clusterip</span><br><span class="line">集群内部通信的方式</span><br><span class="line">2.nodeport</span><br><span class="line">集群外与集群内通信方式</span><br><span class="line">3.loadbalancer</span><br><span class="line">用于结合公有云负载均衡ip</span><br><span class="line">4.ingress</span><br><span class="line">ingress可以作用于多个service，作为集群内部服务的统一入口，ingress作用在七层，可以根据不同的url，将请求转发到不同的service上</span><br></pre></td></tr></table></figure>
+
+<h2 id="service的服务发现"><a href="#service的服务发现" class="headerlink" title="service的服务发现"></a>service的服务发现</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">service的服务发现主要是通过coredns组件完成对svc的域名解析,从而实现各个pod之间的通信.coredns通过plugin的方式进行扩展,独立,灵活</span><br><span class="line">接下来会将kube-proxy的实现</span><br></pre></td></tr></table></figure>
+
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://dbaicss.github.io/2020/01/26/Deployment-controller源码分析/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="dbaicss">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="皮特撸斯">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h2 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2020/01/26/Deployment-controller源码分析/" itemprop="url">Deployment-controller源码分析</a></h2>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-01-26T15:42:23+08:00">
+                2020-01-26
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h3 id="deployment的功能"><a href="#deployment的功能" class="headerlink" title="deployment的功能"></a>deployment的功能</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">deployment controller是deployment资源的控制器,一般用来处理无状态的服务类型,通过DeploymentInformer,ReplicasetInformer,PodInformer监听对应的三种资源,当资源发生变化的时候,出发Deployment Controller中的syncloop操作,直到最终状态符合预期</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">对于 deployment 的删除、暂停恢复、扩缩容以及更新操作都是在 syncDeployment 方法中进行处理的，最终是通过调用 syncStatusOnly、</span><br><span class="line">sync rollback、rolloutRecreate、rolloutRolling 这几个方法来处理的，其中 syncStatusOnly 和 sync 都是更新 Deployment 的 Status，rollback 是用来回滚的，rolloutRecreate 和 rolloutRolling 是根据不同的更新策略来更新 Deployment 的，下面就来看看这些操作的具体实现。</span><br></pre></td></tr></table></figure>
+
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="https://dbaicss.github.io/2019/12/14/kubernetes中关于event监控实践/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1493,311 +1773,13 @@
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://dbaicss.github.io/2019/10/16/Scheduler源码分析-番2-初选过程/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="dbaicss">
-      <meta itemprop="description" content>
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="皮特撸斯">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h2 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2019/10/16/Scheduler源码分析-番2-初选过程/" itemprop="url">Scheduler源码分析-番2-初选过程</a></h2>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">Posted on</span>
-              
-              <time title="Post created" itemprop="dateCreated datePublished" datetime="2019-10-16T17:12:54+08:00">
-                2019-10-16
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-            <span class="post-category">
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">In</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/k8s源码分析/" itemprop="url" rel="index">
-                    <span itemprop="name">k8s源码分析</span>
-                  </a>
-                </span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="Predicates目的"><a href="#Predicates目的" class="headerlink" title="Predicates目的"></a>Predicates目的</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">接上篇,predicates开始于pkg/scheduler/core/generic_scheduler.go文件中findNodesThatFit()方法,实现基于predicate各个<span class="built_in">functions</span>过滤出所有满足运行pod的node列表</span><br></pre></td></tr></table></figure>
-
-<h2 id="Predicates并发"><a href="#Predicates并发" class="headerlink" title="Predicates并发"></a>Predicates并发</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line">说到predicates的并发,就得重点关注下ParallelizeUntil方法</span><br><span class="line">func ParallelizeUntil(ctx context.Context, workers, pieces int, doWorkPiece DoWorkPieceFunc) &#123;</span><br><span class="line">    //注意:在findNodesThatFit()方法中是这样子调用的workqueue.ParallelizeUntil(ctx, 16, int(allNodes), checkNode),</span><br><span class="line">    //也是说worker实参是16,pieces是allnodes,也就是node数量,doWorkPiece是个匿名函数,checkNode就是匿名函数的实现</span><br><span class="line">	var stop &lt;-chan struct&#123;&#125;</span><br><span class="line">	<span class="keyword">if</span> ctx != nil &#123;</span><br><span class="line">		stop = ctx.Done()</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	toProcess := make(chan int, pieces)</span><br><span class="line">	<span class="keyword">for</span> i := 0; i &lt; pieces; i++ &#123;</span><br><span class="line">        //写node总数的数字到channel里</span><br><span class="line">		toProcess &lt;- i</span><br><span class="line">	&#125;</span><br><span class="line">    //关闭channel</span><br><span class="line">	close(toProcess)</span><br><span class="line"></span><br><span class="line">    //node数量小于16,就用node数量作为线程数</span><br><span class="line">	<span class="keyword">if</span> pieces &lt; workers &#123;</span><br><span class="line">		workers = pieces</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	wg := sync.WaitGroup&#123;&#125;</span><br><span class="line">	wg.Add(workers)</span><br><span class="line">	<span class="keyword">for</span> i := 0; i &lt; workers; i++ &#123;</span><br><span class="line">        //协程并发</span><br><span class="line">		go <span class="function"><span class="title">func</span></span>() &#123;</span><br><span class="line">			defer utilruntime.HandleCrash()</span><br><span class="line">			defer wg.Done()</span><br><span class="line">			<span class="keyword">for</span> piece := range toProcess &#123;</span><br><span class="line">				select &#123;</span><br><span class="line">				<span class="keyword">case</span> &lt;-stop:</span><br><span class="line">					<span class="built_in">return</span></span><br><span class="line">				default:</span><br><span class="line">                    //对应就是匿名函数checkNode(num)</span><br><span class="line">					doWorkPiece(piece)</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;()</span><br><span class="line">	&#125;</span><br><span class="line">    //协程跑完</span><br><span class="line">	wg.Wait()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h2 id="One-Node-Predicates"><a href="#One-Node-Predicates" class="headerlink" title="One Node Predicates"></a>One Node Predicates</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br></pre></td><td class="code"><pre><span class="line">主要是pkg/scheduler/core/generic_scheduler.go文件中podFitsOnNode方法,我们来看下这个函数的入参和出参</span><br><span class="line">入参有:</span><br><span class="line">state *framework.CycleState,</span><br><span class="line">pod *v1.Pod,</span><br><span class="line">meta predicates.PredicateMetadata,</span><br><span class="line">info *schedulernodeinfo.NodeInfo,</span><br><span class="line">predicateFuncs map[string]predicates.FitPredicate,</span><br><span class="line">queue internalqueue.SchedulingQueue,</span><br><span class="line">alwaysCheckAllPredicates bool,</span><br><span class="line">出参有:</span><br><span class="line">bool</span><br><span class="line">[]algorithm.PredicateFailureReason</span><br><span class="line">*framework.Status</span><br><span class="line">error</span><br><span class="line">字母意思理解下入参pod信息,元数据信息,缓存信息,初选函数,node缓存信息(用于pod信息一致,可直接返回初选node结果),队列,是否总是走初选,最后一个不太清楚,出参则更好理解了,是否初选到,初选失败原因,错误信息等</span><br><span class="line">我们来看下函数实现</span><br><span class="line">func (g *genericScheduler) podFitsOnNode(</span><br><span class="line">	state *framework.CycleState,</span><br><span class="line">	pod *v1.Pod,</span><br><span class="line">	meta predicates.PredicateMetadata,</span><br><span class="line">	info *schedulernodeinfo.NodeInfo,</span><br><span class="line">	predicateFuncs map[string]predicates.FitPredicate,</span><br><span class="line">	queue internalqueue.SchedulingQueue,</span><br><span class="line">	alwaysCheckAllPredicates bool,</span><br><span class="line">) (bool, []predicates.PredicateFailureReason, *framework.Status, error) &#123;</span><br><span class="line">	var failedPredicates []predicates.PredicateFailureReason</span><br><span class="line">	var status *framework.Status</span><br><span class="line">	podsAdded := <span class="literal">false</span></span><br><span class="line">	<span class="keyword">for</span> i := 0; i &lt; 2; i++ &#123;</span><br><span class="line">        //这里的2次循环,个人理解为防止优先级更高的pod调度和亲和性的问题,如果2次初选都成功,则认为这个初选是成功的</span><br><span class="line">		metaToUse := meta</span><br><span class="line">		stateToUse := state</span><br><span class="line">		nodeInfoToUse := info</span><br><span class="line">		<span class="keyword">if</span> i == 0 &#123;</span><br><span class="line">			var err error</span><br><span class="line">			podsAdded, metaToUse, stateToUse, nodeInfoToUse, err = g.addNominatedPods(pod, meta, state, info, queue)</span><br><span class="line">			<span class="keyword">if</span> err != nil &#123;</span><br><span class="line">				<span class="built_in">return</span> <span class="literal">false</span>, []predicates.PredicateFailureReason&#123;&#125;, nil, err</span><br><span class="line">			&#125;</span><br><span class="line">		&#125; <span class="keyword">else</span> <span class="keyword">if</span> !podsAdded || len(failedPredicates) != 0 &#123;</span><br><span class="line">			<span class="built_in">break</span></span><br><span class="line">		&#125;</span><br><span class="line">        //[predicates.Ordering()返回的是]string，predicate名字list</span><br><span class="line">		<span class="keyword">for</span> _, predicateKey := range predicates.<span class="function"><span class="title">Ordering</span></span>() &#123;</span><br><span class="line">			var (</span><br><span class="line">				fit     bool</span><br><span class="line">				reasons []predicates.PredicateFailureReason</span><br><span class="line">				err     error</span><br><span class="line">			)</span><br><span class="line">            //如果predicateKey存在,则调用该predicate</span><br><span class="line">			<span class="keyword">if</span> predicate, exist := predicateFuncs[predicateKey]; exist &#123;</span><br><span class="line">                //调用predicate</span><br><span class="line">				fit, reasons, err = predicate(pod, metaToUse, nodeInfoToUse)</span><br><span class="line">				<span class="keyword">if</span> err != nil &#123;</span><br><span class="line">					<span class="built_in">return</span> <span class="literal">false</span>, []predicates.PredicateFailureReason&#123;&#125;, nil, err</span><br><span class="line">				&#125;</span><br><span class="line"></span><br><span class="line">				<span class="keyword">if</span> !fit &#123;</span><br><span class="line">					failedPredicates = append(failedPredicates, reasons...)</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		status = g.framework.RunFilterPlugins(stateToUse, pod, nodeInfoToUse)</span><br><span class="line">		<span class="keyword">if</span> !status.IsSuccess() &amp;&amp; !status.<span class="function"><span class="title">IsUnschedulable</span></span>() &#123;</span><br><span class="line">			<span class="built_in">return</span> <span class="literal">false</span>, failedPredicates, status, status.AsError()</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="built_in">return</span> len(failedPredicates) == 0 &amp;&amp; status.IsSuccess(), failedPredicates, status, nil</span><br><span class="line">&#125;</span><br><span class="line">predicatesOrdering定义了下面一堆规则</span><br><span class="line">predicatesOrdering = []string&#123;</span><br><span class="line">       CheckNodeConditionPred, </span><br><span class="line">       CheckNodeUnschedulablePred,</span><br><span class="line">       GeneralPred, </span><br><span class="line">       HostNamePred, </span><br><span class="line">       PodFitsHostPortsPred,</span><br><span class="line">       MatchNodeSelectorPred, </span><br><span class="line">       PodFitsResourcesPred, </span><br><span class="line">       NoDiskConflictPred,</span><br><span class="line">       PodToleratesNodeTaintsPred, </span><br><span class="line">       PodToleratesNodeNoExecuteTaintsPred, </span><br><span class="line">       CheckNodeLabelPresencePred,</span><br><span class="line">       CheckServiceAffinityPred, </span><br><span class="line">       MaxEBSVolumeCountPred, </span><br><span class="line">       MaxGCEPDVolumeCountPred, </span><br><span class="line">       MaxCSIVolumeCountPred,</span><br><span class="line">       MaxAzureDiskVolumeCountPred, </span><br><span class="line">       CheckVolumeBindingPred, </span><br><span class="line">       NoVolumeZoneConflictPred,</span><br><span class="line">       CheckNodeMemoryPressurePred, </span><br><span class="line">       CheckNodePIDPressurePred, </span><br><span class="line">       CheckNodeDiskPressurePred, </span><br><span class="line">       MatchInterPodAffinityPred&#125;</span><br><span class="line">当然也可以用配置文件覆盖,类似于下面这种</span><br><span class="line">&#123;</span><br><span class="line"><span class="string">"kind"</span> : <span class="string">"Policy"</span>,</span><br><span class="line"><span class="string">"apiVersion"</span> : <span class="string">"v1"</span>,</span><br><span class="line"><span class="string">"predicates"</span> : [</span><br><span class="line">    &#123;<span class="string">"name"</span> : <span class="string">"PodFitsHostPorts"</span>, <span class="string">"order"</span>: 2&#125;,</span><br><span class="line">    &#123;<span class="string">"name"</span> : <span class="string">"PodFitsResources"</span>, <span class="string">"order"</span>: 3&#125;,</span><br><span class="line">    &#123;<span class="string">"name"</span> : <span class="string">"NoDiskConflict"</span>, <span class="string">"order"</span>: 5&#125;,</span><br><span class="line">    &#123;<span class="string">"name"</span> : <span class="string">"PodToleratesNodeTaints"</span>, <span class="string">"order"</span>: 4&#125;,</span><br><span class="line">    &#123;<span class="string">"name"</span> : <span class="string">"MatchNodeSelector"</span>, <span class="string">"order"</span>: 6&#125;,</span><br><span class="line">    &#123;<span class="string">"name"</span> : <span class="string">"PodFitsHost"</span>, <span class="string">"order"</span>: 1&#125;</span><br><span class="line">    ],</span><br><span class="line"><span class="string">"priorities"</span> : [</span><br><span class="line">    &#123;<span class="string">"name"</span> : <span class="string">"LeastRequestedPriority"</span>, <span class="string">"weight"</span> : 1&#125;,</span><br><span class="line">    &#123;<span class="string">"name"</span> : <span class="string">"BalancedResourceAllocation"</span>, <span class="string">"weight"</span> : 1&#125;,</span><br><span class="line">    &#123;<span class="string">"name"</span> : <span class="string">"ServiceSpreadingPriority"</span>, <span class="string">"weight"</span> : 1&#125;,</span><br><span class="line">    &#123;<span class="string">"name"</span> : <span class="string">"EqualPriority"</span>, <span class="string">"weight"</span> : 1&#125;</span><br><span class="line">    ],</span><br><span class="line"><span class="string">"hardPodAffinitySymmetricWeight"</span> : 10</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h2 id="单个Predicate执行动作"><a href="#单个Predicate执行动作" class="headerlink" title="单个Predicate执行动作"></a>单个Predicate执行动作</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">其实很清晰,就在这一行</span><br><span class="line">fit, reasons, err = predicate(pod, metaToUse, nodeInfoToUse)</span><br></pre></td></tr></table></figure>
-
-<h2 id="Predicate函数"><a href="#Predicate函数" class="headerlink" title="Predicate函数"></a>Predicate函数</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">Predicate实现见pkg/scheduler/algorithm/predicates/predicates.go文件,我们来看1个predicate func</span><br><span class="line">func PodMatchNodeSelector(pod *v1.Pod, meta PredicateMetadata, nodeInfo *schedulernodeinfo.NodeInfo) (bool, []PredicateFailureReason, error) &#123;</span><br><span class="line">	node := nodeInfo.Node()</span><br><span class="line">	<span class="keyword">if</span> node == nil &#123;</span><br><span class="line">		<span class="built_in">return</span> <span class="literal">false</span>, nil, fmt.Errorf(<span class="string">"node not found"</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> PodMatchesNodeSelectorAndAffinityTerms(pod, node) &#123;</span><br><span class="line">		<span class="built_in">return</span> <span class="literal">true</span>, nil, nil</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="built_in">return</span> <span class="literal">false</span>, []PredicateFailureReason&#123;ErrNodeSelectorNotMatch&#125;, nil</span><br><span class="line">&#125;</span><br><span class="line">入参是pod,metadata,info,出参是bool,[]PredicateFailureReason,error,如上所示,标准的单个predicate实现</span><br><span class="line">函数功能也很清晰,根据label selector过滤和Affinity判断亲和性是否满足要求,返回<span class="literal">true</span>/<span class="literal">false</span></span><br></pre></td></tr></table></figure>
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://dbaicss.github.io/2019/10/15/Scheduler源码分析/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="dbaicss">
-      <meta itemprop="description" content>
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="皮特撸斯">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h2 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2019/10/15/Scheduler源码分析/" itemprop="url">Scheduler源码分析</a></h2>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">Posted on</span>
-              
-              <time title="Post created" itemprop="dateCreated datePublished" datetime="2019-10-15T14:02:38+08:00">
-                2019-10-15
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-            <span class="post-category">
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">In</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/k8s源码分析/" itemprop="url" rel="index">
-                    <span itemprop="name">k8s源码分析</span>
-                  </a>
-                </span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="Scheduler作用"><a href="#Scheduler作用" class="headerlink" title="Scheduler作用"></a>Scheduler作用</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Scheduler一句话总结是主动请求api server,获取等待调度的pod信息列表,通过一系列的调度算法,帅选出满足需求的node, 将pod和node的绑定关系返回给api server,从而完成整个pod调度的过程</span><br></pre></td></tr></table></figure>
-
-<h2 id="Scheduler代码结构"><a href="#Scheduler代码结构" class="headerlink" title="Scheduler代码结构"></a>Scheduler代码结构</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Scheduler代码结构比较清晰,主要分为三个部分</span><br><span class="line">①. cmd/kube-scheduler/scheduler.go: 入口函数,完成一系列初始化动作</span><br><span class="line">②. pkg/scheduler/scheduler.go:  调度的具体逻辑</span><br><span class="line">③. pkg/scheduler/core/generic_scheduler.go: 具体的调度算法实现</span><br></pre></td></tr></table></figure>
-
-<h2 id="接下来让我们逐个分析"><a href="#接下来让我们逐个分析" class="headerlink" title="接下来让我们逐个分析"></a>接下来让我们逐个分析</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">cmd/kube-scheduler/scheduler.go, 入口函数,完成一系列初始化环境,读取配置,鉴权等操作,没什么好说的,直接跳过</span><br><span class="line">pkg/scheduler/scheduler.go, 调度的具体逻辑,从入口函数一路跟进去,NewSchedulerCommand()-&gt;runCommand()-&gt;Run()-&gt;sched.Run()-&gt;sched.scheduleOne,代码删除掉一些非线性逻辑之后如下:</span><br><span class="line">func (<span class="built_in">sched</span> *Scheduler) <span class="function"><span class="title">scheduleOne</span></span>() &#123;</span><br><span class="line">	fwk := sched.Framework</span><br><span class="line">	scheduleResult, err := sched.Algorithm.Schedule(state, pod)</span><br><span class="line">	// Run <span class="string">"reserve"</span> plugins.</span><br><span class="line">	// Run <span class="string">"permit"</span> plugins.</span><br><span class="line">	// Run <span class="string">"prebind"</span> plugins.</span><br><span class="line">	err := sched.bind(assumedPod, scheduleResult.SuggestedHost, state)</span><br><span class="line">	&#125;()</span><br><span class="line">&#125;</span><br><span class="line">主要的逻辑包括翻转插件,允许使用的插件,预绑定pod和node,以及绑定pod和node逻辑</span><br><span class="line">sched.Algorithm.Schedule跟进去可以看到定义了interface,包括6个方法</span><br><span class="line"><span class="built_in">type</span> ScheduleAlgorithm interface &#123;</span><br><span class="line">	Schedule(*framework.CycleState, *v1.Pod) (scheduleResult ScheduleResult, err error)</span><br><span class="line">	Preempt(*framework.CycleState, *v1.Pod, error) (selectedNode *v1.Node, preemptedPods []*v1.Pod, cleanupNominatedPods []*v1.Pod, err error)</span><br><span class="line">	Predicates() map[string]predicates.FitPredicate</span><br><span class="line">	Prioritizers() []priorities.PriorityConfig</span><br><span class="line">	Extenders() []algorithm.SchedulerExtender</span><br><span class="line">&#125;</span><br><span class="line">关键的方法有三个,preempt抢占,predicates预选,prioritizers优选,另外三个方法不用太多关注</span><br><span class="line">sched.Algorithm.Schedule实际调用的是genericScheduler.Schedule()方法，在pkg/scheduler/core/generic_scheduler.go,总结起来就是尝试将指定的pod调度到给定的node列表中的一个，成功则返回node名字</span><br><span class="line">完整的业务流程图如下:</span><br></pre></td></tr></table></figure>
-
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
+  <nav class="pagination">
+    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="extend next" rel="next" href="/page/2/"><i class="fa fa-angle-right"></i></a>
+  </nav>
+
 
 
           </div>
@@ -1841,7 +1823,7 @@
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">10</span>
+                  <span class="site-state-item-count">12</span>
                   <span class="site-state-item-name">posts</span>
                 </a>
               </div>
@@ -1863,7 +1845,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">5</span>
+                  <span class="site-state-item-count">6</span>
                   <span class="site-state-item-name">tags</span>
                 </a>
               </div>
@@ -1917,7 +1899,7 @@
 
     <footer id="footer" class="footer">
       <div class="footer-inner">
-        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2020</span>
   <span class="with-love">
     <i class="fa fa-user"></i>
   </span>

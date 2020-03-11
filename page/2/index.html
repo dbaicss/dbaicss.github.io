@@ -68,7 +68,7 @@
 
 
 
-  <meta name="keywords" content="k8s,scheduler,">
+  <meta name="keywords" content="Hexo, NexT">
 
 
 
@@ -81,18 +81,17 @@
 
 
 
-<meta name="description" content="Predicates目的1接上篇,predicates开始于pkg/scheduler/core/generic_scheduler.go文件中findNodesThatFit()方法,实现基于predicate各个functions过滤出所有满足运行pod的node列表  Predicates并发12345678910111213141516171819202122232425262728293">
-<meta name="keywords" content="k8s,scheduler">
-<meta property="og:type" content="article">
-<meta property="og:title" content="Scheduler源码分析-番2-初选过程">
-<meta property="og:url" content="https://dbaicss.github.io/2019/10/16/Scheduler源码分析-番2-初选过程/index.html">
+<meta name="description" content="记录各种美好">
+<meta name="keywords" content="kubernetes golang go 源码">
+<meta property="og:type" content="website">
+<meta property="og:title" content="皮特撸斯">
+<meta property="og:url" content="https://dbaicss.github.io/page/2/index.html">
 <meta property="og:site_name" content="皮特撸斯">
-<meta property="og:description" content="Predicates目的1接上篇,predicates开始于pkg/scheduler/core/generic_scheduler.go文件中findNodesThatFit()方法,实现基于predicate各个functions过滤出所有满足运行pod的node列表  Predicates并发12345678910111213141516171819202122232425262728293">
+<meta property="og:description" content="记录各种美好">
 <meta property="og:locale" content="zh-cn">
-<meta property="og:updated_time" content="2019-12-14T06:06:05.395Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Scheduler源码分析-番2-初选过程">
-<meta name="twitter:description" content="Predicates目的1接上篇,predicates开始于pkg/scheduler/core/generic_scheduler.go文件中findNodesThatFit()方法,实现基于predicate各个functions过滤出所有满足运行pod的node列表  Predicates并发12345678910111213141516171819202122232425262728293">
+<meta name="twitter:title" content="皮特撸斯">
+<meta name="twitter:description" content="记录各种美好">
 
 
 
@@ -122,13 +121,13 @@
 
 
 
-  <link rel="canonical" href="https://dbaicss.github.io/2019/10/16/Scheduler源码分析-番2-初选过程/">
+  <link rel="canonical" href="https://dbaicss.github.io/page/2/">
 
 
 
 
 
-  <title>Scheduler源码分析-番2-初选过程 | 皮特撸斯</title>
+  <title>皮特撸斯</title>
   
 
 
@@ -147,7 +146,8 @@
     
   
 
-  <div class="container sidebar-position-left page-post-detail">
+  <div class="container sidebar-position-left 
+  page-home">
     <div class="headband"></div>
 
     <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
@@ -282,9 +282,9 @@
         <div class="content-wrap">
           <div id="content" class="content">
             
-
-  <div id="posts" class="posts-expand">
+  <section id="posts" class="posts-expand">
     
+      
 
   
 
@@ -314,7 +314,9 @@
 
         
         
-          <h2 class="post-title" itemprop="name headline">Scheduler源码分析-番2-初选过程</h2>
+          <h2 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2019/10/16/Scheduler源码分析-番2-初选过程/" itemprop="url">Scheduler源码分析-番2-初选过程</a></h2>
         
 
         <div class="post-meta">
@@ -386,7 +388,9 @@
       
 
       
-        <h2 id="Predicates目的"><a href="#Predicates目的" class="headerlink" title="Predicates目的"></a>Predicates目的</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">接上篇,predicates开始于pkg/scheduler/core/generic_scheduler.go文件中findNodesThatFit()方法,实现基于predicate各个<span class="built_in">functions</span>过滤出所有满足运行pod的node列表</span><br></pre></td></tr></table></figure>
+        
+          
+            <h2 id="Predicates目的"><a href="#Predicates目的" class="headerlink" title="Predicates目的"></a>Predicates目的</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">接上篇,predicates开始于pkg/scheduler/core/generic_scheduler.go文件中findNodesThatFit()方法,实现基于predicate各个<span class="built_in">functions</span>过滤出所有满足运行pod的node列表</span><br></pre></td></tr></table></figure>
 
 <h2 id="Predicates并发"><a href="#Predicates并发" class="headerlink" title="Predicates并发"></a>Predicates并发</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line">说到predicates的并发,就得重点关注下ParallelizeUntil方法</span><br><span class="line">func ParallelizeUntil(ctx context.Context, workers, pieces int, doWorkPiece DoWorkPieceFunc) &#123;</span><br><span class="line">    //注意:在findNodesThatFit()方法中是这样子调用的workqueue.ParallelizeUntil(ctx, 16, int(allNodes), checkNode),</span><br><span class="line">    //也是说worker实参是16,pieces是allnodes,也就是node数量,doWorkPiece是个匿名函数,checkNode就是匿名函数的实现</span><br><span class="line">	var stop &lt;-chan struct&#123;&#125;</span><br><span class="line">	<span class="keyword">if</span> ctx != nil &#123;</span><br><span class="line">		stop = ctx.Done()</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	toProcess := make(chan int, pieces)</span><br><span class="line">	<span class="keyword">for</span> i := 0; i &lt; pieces; i++ &#123;</span><br><span class="line">        //写node总数的数字到channel里</span><br><span class="line">		toProcess &lt;- i</span><br><span class="line">	&#125;</span><br><span class="line">    //关闭channel</span><br><span class="line">	close(toProcess)</span><br><span class="line"></span><br><span class="line">    //node数量小于16,就用node数量作为线程数</span><br><span class="line">	<span class="keyword">if</span> pieces &lt; workers &#123;</span><br><span class="line">		workers = pieces</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	wg := sync.WaitGroup&#123;&#125;</span><br><span class="line">	wg.Add(workers)</span><br><span class="line">	<span class="keyword">for</span> i := 0; i &lt; workers; i++ &#123;</span><br><span class="line">        //协程并发</span><br><span class="line">		go <span class="function"><span class="title">func</span></span>() &#123;</span><br><span class="line">			defer utilruntime.HandleCrash()</span><br><span class="line">			defer wg.Done()</span><br><span class="line">			<span class="keyword">for</span> piece := range toProcess &#123;</span><br><span class="line">				select &#123;</span><br><span class="line">				<span class="keyword">case</span> &lt;-stop:</span><br><span class="line">					<span class="built_in">return</span></span><br><span class="line">				default:</span><br><span class="line">                    //对应就是匿名函数checkNode(num)</span><br><span class="line">					doWorkPiece(piece)</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125;()</span><br><span class="line">	&#125;</span><br><span class="line">    //协程跑完</span><br><span class="line">	wg.Wait()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -395,6 +399,8 @@
 <h2 id="单个Predicate执行动作"><a href="#单个Predicate执行动作" class="headerlink" title="单个Predicate执行动作"></a>单个Predicate执行动作</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">其实很清晰,就在这一行</span><br><span class="line">fit, reasons, err = predicate(pod, metaToUse, nodeInfoToUse)</span><br></pre></td></tr></table></figure>
 
 <h2 id="Predicate函数"><a href="#Predicate函数" class="headerlink" title="Predicate函数"></a>Predicate函数</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">Predicate实现见pkg/scheduler/algorithm/predicates/predicates.go文件,我们来看1个predicate func</span><br><span class="line">func PodMatchNodeSelector(pod *v1.Pod, meta PredicateMetadata, nodeInfo *schedulernodeinfo.NodeInfo) (bool, []PredicateFailureReason, error) &#123;</span><br><span class="line">	node := nodeInfo.Node()</span><br><span class="line">	<span class="keyword">if</span> node == nil &#123;</span><br><span class="line">		<span class="built_in">return</span> <span class="literal">false</span>, nil, fmt.Errorf(<span class="string">"node not found"</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> PodMatchesNodeSelectorAndAffinityTerms(pod, node) &#123;</span><br><span class="line">		<span class="built_in">return</span> <span class="literal">true</span>, nil, nil</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="built_in">return</span> <span class="literal">false</span>, []PredicateFailureReason&#123;ErrNodeSelectorNotMatch&#125;, nil</span><br><span class="line">&#125;</span><br><span class="line">入参是pod,metadata,info,出参是bool,[]PredicateFailureReason,error,如上所示,标准的单个predicate实现</span><br><span class="line">函数功能也很清晰,根据label selector过滤和Affinity判断亲和性是否满足要求,返回<span class="literal">true</span>/<span class="literal">false</span></span><br></pre></td></tr></table></figure>
+          
+        
       
     </div>
     
@@ -402,76 +408,24 @@
     
 
     
-      <div>
-          <div>  <div style="text-align:center;color: #ccc;font-size:14px;">-------------本文结束<i class="fa fa-smile-o"></i>感谢您的阅读-------------</div>  </div>
-
-      </div>
-    
 
 
     
 
-    
-      <div>
-        <div style="padding: 10px 0; margin: 20px auto; width: 90%; text-align: center;">
-  <div>谢谢各位看官老爷,您的支持和鼓励是我继续写下去的动力!!</div>
-  <button id="rewardButton" disable="enable" style="width: 80px;line-height: 38px;text-align: center;font-weight: bold;color: #fff;border-radius: 5px;
-margin:0 20px 20px 0;position: relative;overflow: hidden;color: #8c96a0;text-shadow:1px 1px 1px #fff;border:1px solid #dce1e6;box-shadow: 0 1px 2px #fff inset,0 -1px 0 #a8abae inset;background: -webkit-linear-gradient(top,#f2f3f7,#e4e8ec);background: -moz-linear-gradient(top,#f2f3f7,#e4e8ec);background: linear-gradient(top,#f2f3f7,#e4e8ec);" onclick="var qr = document.getElementById('QR'); if (qr.style.display === 'none') {qr.style.display='block';} else {qr.style.display='none'}">
-    打赏
-  </button>
-  <div id="QR" style="display: none;">
-    
-      <div id="wechat" style="display: inline-block;width:150px;height:150px">
-        <img id="wechat_qr" src="/images/wechatpay.jpg" alt="dbaicss WeChat Pay">
-        <p>WeChat Pay</p>
-      </div>
-    
-  </div>
-</div>
-
-      </div>
     
 
     
 
     <footer class="post-footer">
       
-        <div class="post-tags">
-          
-            <a href="/tags/k8s/" rel="tag"># k8s</a>
-          
-            <a href="/tags/scheduler/" rel="tag"># scheduler</a>
-          
-        </div>
+
+      
+
       
 
       
       
-      
-
-      
-        <div class="post-nav">
-          <div class="post-nav-next post-nav-item">
-            
-              <a href="/2019/10/15/Scheduler源码分析/" rel="next" title="Scheduler源码分析">
-                <i class="fa fa-chevron-left"></i> Scheduler源码分析
-              </a>
-            
-          </div>
-
-          <span class="post-nav-divider"></span>
-
-          <div class="post-nav-prev post-nav-item">
-            
-              <a href="/2019/10/17/Scheduler源码分析-番3-优选过程/" rel="prev" title="Scheduler源码分析-番3-优选过程">
-                Scheduler源码分析-番3-优选过程 <i class="fa fa-chevron-right"></i>
-              </a>
-            
-          </div>
-        </div>
-      
-
-      
+        <div class="post-eof"></div>
       
     </footer>
   </div>
@@ -481,11 +435,164 @@ margin:0 20px 20px 0;position: relative;overflow: hidden;color: #8c96a0;text-sha
   </article>
 
 
+    
+      
 
-    <div class="post-spread">
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://dbaicss.github.io/2019/10/15/Scheduler源码分析/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="dbaicss">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="皮特撸斯">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h2 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2019/10/15/Scheduler源码分析/" itemprop="url">Scheduler源码分析</a></h2>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2019-10-15T14:02:38+08:00">
+                2019-10-15
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">In</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/k8s源码分析/" itemprop="url" rel="index">
+                    <span itemprop="name">k8s源码分析</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="Scheduler作用"><a href="#Scheduler作用" class="headerlink" title="Scheduler作用"></a>Scheduler作用</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Scheduler一句话总结是主动请求api server,获取等待调度的pod信息列表,通过一系列的调度算法,帅选出满足需求的node, 将pod和node的绑定关系返回给api server,从而完成整个pod调度的过程</span><br></pre></td></tr></table></figure>
+
+<h2 id="Scheduler代码结构"><a href="#Scheduler代码结构" class="headerlink" title="Scheduler代码结构"></a>Scheduler代码结构</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Scheduler代码结构比较清晰,主要分为三个部分</span><br><span class="line">①. cmd/kube-scheduler/scheduler.go: 入口函数,完成一系列初始化动作</span><br><span class="line">②. pkg/scheduler/scheduler.go:  调度的具体逻辑</span><br><span class="line">③. pkg/scheduler/core/generic_scheduler.go: 具体的调度算法实现</span><br></pre></td></tr></table></figure>
+
+<h2 id="接下来让我们逐个分析"><a href="#接下来让我们逐个分析" class="headerlink" title="接下来让我们逐个分析"></a>接下来让我们逐个分析</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">cmd/kube-scheduler/scheduler.go, 入口函数,完成一系列初始化环境,读取配置,鉴权等操作,没什么好说的,直接跳过</span><br><span class="line">pkg/scheduler/scheduler.go, 调度的具体逻辑,从入口函数一路跟进去,NewSchedulerCommand()-&gt;runCommand()-&gt;Run()-&gt;sched.Run()-&gt;sched.scheduleOne,代码删除掉一些非线性逻辑之后如下:</span><br><span class="line">func (<span class="built_in">sched</span> *Scheduler) <span class="function"><span class="title">scheduleOne</span></span>() &#123;</span><br><span class="line">	fwk := sched.Framework</span><br><span class="line">	scheduleResult, err := sched.Algorithm.Schedule(state, pod)</span><br><span class="line">	// Run <span class="string">"reserve"</span> plugins.</span><br><span class="line">	// Run <span class="string">"permit"</span> plugins.</span><br><span class="line">	// Run <span class="string">"prebind"</span> plugins.</span><br><span class="line">	err := sched.bind(assumedPod, scheduleResult.SuggestedHost, state)</span><br><span class="line">	&#125;()</span><br><span class="line">&#125;</span><br><span class="line">主要的逻辑包括翻转插件,允许使用的插件,预绑定pod和node,以及绑定pod和node逻辑</span><br><span class="line">sched.Algorithm.Schedule跟进去可以看到定义了interface,包括6个方法</span><br><span class="line"><span class="built_in">type</span> ScheduleAlgorithm interface &#123;</span><br><span class="line">	Schedule(*framework.CycleState, *v1.Pod) (scheduleResult ScheduleResult, err error)</span><br><span class="line">	Preempt(*framework.CycleState, *v1.Pod, error) (selectedNode *v1.Node, preemptedPods []*v1.Pod, cleanupNominatedPods []*v1.Pod, err error)</span><br><span class="line">	Predicates() map[string]predicates.FitPredicate</span><br><span class="line">	Prioritizers() []priorities.PriorityConfig</span><br><span class="line">	Extenders() []algorithm.SchedulerExtender</span><br><span class="line">&#125;</span><br><span class="line">关键的方法有三个,preempt抢占,predicates预选,prioritizers优选,另外三个方法不用太多关注</span><br><span class="line">sched.Algorithm.Schedule实际调用的是genericScheduler.Schedule()方法，在pkg/scheduler/core/generic_scheduler.go,总结起来就是尝试将指定的pod调度到给定的node列表中的一个，成功则返回node名字</span><br><span class="line">完整的业务流程图如下:</span><br></pre></td></tr></table></figure>
+
+
+          
+        
       
     </div>
+    
+    
+    
+
+    
+
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
   </div>
+  
+  
+  
+  </article>
+
+
+    
+  </section>
+
+  
+  <nav class="pagination">
+    <a class="extend prev" rel="prev" href="/"><i class="fa fa-angle-left"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span>
+  </nav>
+
 
 
           </div>
@@ -493,10 +600,6 @@ margin:0 20px 20px 0;position: relative;overflow: hidden;color: #8c96a0;text-sha
 
 
           
-
-  
-
-
 
         </div>
         
@@ -517,17 +620,8 @@ margin:0 20px 20px 0;position: relative;overflow: hidden;color: #8c96a0;text-sha
       
 
       
-        <ul class="sidebar-nav motion-element">
-          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
-            Table of Contents
-          </li>
-          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
-            Overview
-          </li>
-        </ul>
-      
 
-      <section class="site-overview-wrap sidebar-panel">
+      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
         <div class="site-overview">
           <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
             
@@ -604,22 +698,6 @@ margin:0 20px 20px 0;position: relative;overflow: hidden;color: #8c96a0;text-sha
         </div>
       </section>
 
-      
-      <!--noindex-->
-        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
-          <div class="post-toc">
-
-            
-              
-            
-
-            
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Predicates目的"><span class="nav-number">1.</span> <span class="nav-text">Predicates目的</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Predicates并发"><span class="nav-number">2.</span> <span class="nav-text">Predicates并发</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#One-Node-Predicates"><span class="nav-number">3.</span> <span class="nav-text">One Node Predicates</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#单个Predicate执行动作"><span class="nav-number">4.</span> <span class="nav-text">单个Predicate执行动作</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Predicate函数"><span class="nav-number">5.</span> <span class="nav-text">Predicate函数</span></a></li></ol></div>
-            
-
-          </div>
-        </section>
-      <!--/noindex-->
       
 
       
@@ -753,10 +831,6 @@ margin:0 20px 20px 0;position: relative;overflow: hidden;color: #8c96a0;text-sha
   
 
   
-  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
-<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
-
-
 
   
 

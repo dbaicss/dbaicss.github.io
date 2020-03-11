@@ -68,7 +68,7 @@
 
 
 
-  <meta name="keywords" content="Hexo, NexT">
+  <meta name="keywords" content="k8s,service,">
 
 
 
@@ -81,18 +81,18 @@
 
 
 
-<meta name="description" content="记录各种美好">
-<meta name="keywords" content="kubernetes golang go 源码">
-<meta property="og:type" content="website">
-<meta property="og:title" content="tags">
-<meta property="og:url" content="https://dbaicss.github.io/tags/index.html">
+<meta name="description" content="service作用1一句话总结就是实现k8s中服务发现,屏蔽掉pod ip会漂移的问题.它是一组相同pod label集合的抽象  service原理1![](/images/service.jpg)  service负载均衡机制123456789101112131415161718192021222324service常见的负载均衡机制主要有4种1.userspace需要多次内核态到用户态的转换">
+<meta name="keywords" content="k8s,service">
+<meta property="og:type" content="article">
+<meta property="og:title" content="k8s-Service源码分析">
+<meta property="og:url" content="https://dbaicss.github.io/2020/03/07/k8s-Service源码分析/index.html">
 <meta property="og:site_name" content="皮特撸斯">
-<meta property="og:description" content="记录各种美好">
+<meta property="og:description" content="service作用1一句话总结就是实现k8s中服务发现,屏蔽掉pod ip会漂移的问题.它是一组相同pod label集合的抽象  service原理1![](/images/service.jpg)  service负载均衡机制123456789101112131415161718192021222324service常见的负载均衡机制主要有4种1.userspace需要多次内核态到用户态的转换">
 <meta property="og:locale" content="zh-cn">
-<meta property="og:updated_time" content="2019-12-14T06:04:19.257Z">
+<meta property="og:updated_time" content="2020-03-11T11:58:03.669Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="tags">
-<meta name="twitter:description" content="记录各种美好">
+<meta name="twitter:title" content="k8s-Service源码分析">
+<meta name="twitter:description" content="service作用1一句话总结就是实现k8s中服务发现,屏蔽掉pod ip会漂移的问题.它是一组相同pod label集合的抽象  service原理1![](/images/service.jpg)  service负载均衡机制123456789101112131415161718192021222324service常见的负载均衡机制主要有4种1.userspace需要多次内核态到用户态的转换">
 
 
 
@@ -122,13 +122,13 @@
 
 
 
-  <link rel="canonical" href="https://dbaicss.github.io/tags/">
+  <link rel="canonical" href="https://dbaicss.github.io/2020/03/07/k8s-Service源码分析/">
 
 
 
 
 
-  <title>tags | 皮特撸斯</title>
+  <title>k8s-Service源码分析 | 皮特撸斯</title>
   
 
 
@@ -285,40 +285,204 @@
 
   <div id="posts" class="posts-expand">
     
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://dbaicss.github.io/2020/03/07/k8s-Service源码分析/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="dbaicss">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="皮特撸斯">
+    </span>
+
     
-    
-    <div class="post-block page">
       <header class="post-header">
 
-	<h2 class="post-title" itemprop="name headline">tags</h2>
-
-
-
-</header>
-
-      
-      
-      
-      <div class="post-body">
         
         
-          <div class="tag-cloud">
-            <div class="tag-cloud-title">
-                6 tags in total
-            </div>
-            <div class="tag-cloud-tags">
-              <a href="/tags/event-exporter/" style="font-size: 12px; color: #ccc">event exporter</a> <a href="/tags/grafana/" style="font-size: 12px; color: #ccc">grafana</a> <a href="/tags/k8s/" style="font-size: 30px; color: #111">k8s</a> <a href="/tags/prometheus/" style="font-size: 12px; color: #ccc">prometheus</a> <a href="/tags/scheduler/" style="font-size: 21px; color: #6f6f6f">scheduler</a> <a href="/tags/service/" style="font-size: 12px; color: #ccc">service</a>
-            </div>
-          </div>
+          <h2 class="post-title" itemprop="name headline">k8s-Service源码分析</h2>
         
-      </div>
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-03-07T10:35:46+08:00">
+                2020-03-07
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">In</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/k8s源码分析/" itemprop="url" rel="index">
+                    <span itemprop="name">k8s源码分析</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
       
       
+
+      
+        <h2 id="service作用"><a href="#service作用" class="headerlink" title="service作用"></a>service作用</h2><figure class="highlight dockerfile"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">一句话总结就是实现k8s中服务发现,屏蔽掉pod ip会漂移的问题.它是一组相同pod <span class="keyword">label</span><span class="bash">集合的抽象</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="service原理"><a href="#service原理" class="headerlink" title="service原理"></a>service原理</h2><figure class="highlight less"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">!<span class="selector-attr">[]</span>(/images/service.jpg)</span><br></pre></td></tr></table></figure>
+
+<h2 id="service负载均衡机制"><a href="#service负载均衡机制" class="headerlink" title="service负载均衡机制"></a>service负载均衡机制</h2><figure class="highlight angelscript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">service常见的负载均衡机制主要有<span class="number">4</span>种</span><br><span class="line"><span class="number">1.</span>userspace</span><br><span class="line">需要多次内核态到用户态的转换,转发效率低下</span><br><span class="line"><span class="number">2.</span>iptables</span><br><span class="line">通过dnat的方式实现service到pod地址流量转发</span><br><span class="line">优点:</span><br><span class="line">只有一次内核态到用户态的转换,转发效率比较高</span><br><span class="line">缺点:</span><br><span class="line">iptables底层是链表,当svc条目多,需要维护的iptable规则多的时候,增删改查性能会大幅下降;</span><br><span class="line">iptables转发流量只支持随机,轮询等简单的负载均衡算法</span><br><span class="line">iptables不支持<span class="number">7</span>层的健康检查,会话保持,连接重试等功能</span><br><span class="line"><span class="number">3.</span>ipvs</span><br><span class="line">通过dnat的方式实现service到pod地址流量转发</span><br><span class="line">优点:</span><br><span class="line">工作在内核态,转发效率高;</span><br><span class="line">底层是哈希表,ipvs通过ipset组件来管理和存储iptable规则,并不会直接增加iptable表,svc条目多的</span><br><span class="line">时候不会造成性能下降,理论上可以无限扩展;</span><br><span class="line">支持dh,sh,sed等更为复杂的负载均衡算法;</span><br><span class="line">支持健康检查,会话保持等<span class="number">7</span>层功能</span><br><span class="line">缺点:</span><br><span class="line">ipvs在snat,nodeport等场景还是使用iptable转发实现,linux kernel原生只支持dnat;</span><br><span class="line">ipvs模式下,滚动更新pod的场景下,conn_track表会复用之前记录的dnat记录,导致流量还是转发到之前老的pod里面</span><br><span class="line"><span class="number">4.</span>kernelspace</span><br><span class="line">主要使用在windows</span><br></pre></td></tr></table></figure>
+
+<h2 id="service类型"><a href="#service类型" class="headerlink" title="service类型"></a>service类型</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">service支持的类型主要是kubernetes中服务暴露的方式</span><br><span class="line">1.clusterip</span><br><span class="line">集群内部通信的方式</span><br><span class="line">2.nodeport</span><br><span class="line">集群外与集群内通信方式</span><br><span class="line">3.loadbalancer</span><br><span class="line">用于结合公有云负载均衡ip</span><br><span class="line">4.ingress</span><br><span class="line">ingress可以作用于多个service，作为集群内部服务的统一入口，ingress作用在七层，可以根据不同的url，将请求转发到不同的service上</span><br></pre></td></tr></table></figure>
+
+<h2 id="service的服务发现"><a href="#service的服务发现" class="headerlink" title="service的服务发现"></a>service的服务发现</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">service的服务发现主要是通过coredns组件完成对svc的域名解析,从而实现各个pod之间的通信.coredns通过plugin的方式进行扩展,独立,灵活</span><br><span class="line">接下来会将kube-proxy的实现</span><br></pre></td></tr></table></figure>
+
+
       
     </div>
     
     
     
+
+    
+      <div>
+          <div>  <div style="text-align:center;color: #ccc;font-size:14px;">-------------本文结束<i class="fa fa-smile-o"></i>感谢您的阅读-------------</div>  </div>
+
+      </div>
+    
+
+
+    
+
+    
+      <div>
+        <div style="padding: 10px 0; margin: 20px auto; width: 90%; text-align: center;">
+  <div>谢谢各位看官老爷,您的支持和鼓励是我继续写下去的动力!!</div>
+  <button id="rewardButton" disable="enable" style="width: 80px;line-height: 38px;text-align: center;font-weight: bold;color: #fff;border-radius: 5px;
+margin:0 20px 20px 0;position: relative;overflow: hidden;color: #8c96a0;text-shadow:1px 1px 1px #fff;border:1px solid #dce1e6;box-shadow: 0 1px 2px #fff inset,0 -1px 0 #a8abae inset;background: -webkit-linear-gradient(top,#f2f3f7,#e4e8ec);background: -moz-linear-gradient(top,#f2f3f7,#e4e8ec);background: linear-gradient(top,#f2f3f7,#e4e8ec);" onclick="var qr = document.getElementById('QR'); if (qr.style.display === 'none') {qr.style.display='block';} else {qr.style.display='none'}">
+    打赏
+  </button>
+  <div id="QR" style="display: none;">
+    
+      <div id="wechat" style="display: inline-block;width:150px;height:150px">
+        <img id="wechat_qr" src="/images/wechatpay.jpg" alt="dbaicss WeChat Pay">
+        <p>WeChat Pay</p>
+      </div>
+    
+  </div>
+</div>
+
+      </div>
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/k8s/" rel="tag"># k8s</a>
+          
+            <a href="/tags/service/" rel="tag"># service</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2020/01/26/Deployment-controller源码分析/" rel="next" title="Deployment-controller源码分析">
+                <i class="fa fa-chevron-left"></i> Deployment-controller源码分析
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
   </div>
 
 
@@ -351,8 +515,17 @@
       
 
       
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            Table of Contents
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            Overview
+          </li>
+        </ul>
+      
 
-      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+      <section class="site-overview-wrap sidebar-panel">
         <div class="site-overview">
           <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
             
@@ -429,6 +602,22 @@
         </div>
       </section>
 
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#service作用"><span class="nav-number">1.</span> <span class="nav-text">service作用</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#service原理"><span class="nav-number">2.</span> <span class="nav-text">service原理</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#service负载均衡机制"><span class="nav-number">3.</span> <span class="nav-text">service负载均衡机制</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#service类型"><span class="nav-number">4.</span> <span class="nav-text">service类型</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#service的服务发现"><span class="nav-number">5.</span> <span class="nav-text">service的服务发现</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
       
 
       

@@ -1,6 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>k8s-Service源码分析</title>
+    <url>/2020/03/07/k8s-Service%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/</url>
+    <content><![CDATA[<h2 id="service作用"><a href="#service作用" class="headerlink" title="service作用"></a>service作用</h2><figure class="highlight dockerfile"><table><tr><td class="code"><pre><span class="line">一句话总结就是实现k8s中服务发现,屏蔽掉pod ip会漂移的问题.它是一组相同pod <span class="keyword">label</span><span class="bash">集合的抽象</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="service原理"><a href="#service原理" class="headerlink" title="service原理"></a>service原理</h2><figure class="highlight less"><table><tr><td class="code"><pre><span class="line">!<span class="selector-attr">[]</span>(/images/service.jpg)</span><br></pre></td></tr></table></figure>
+
+<h2 id="service负载均衡机制"><a href="#service负载均衡机制" class="headerlink" title="service负载均衡机制"></a>service负载均衡机制</h2><figure class="highlight angelscript"><table><tr><td class="code"><pre><span class="line">service常见的负载均衡机制主要有<span class="number">4</span>种</span><br><span class="line"><span class="number">1.</span>userspace</span><br><span class="line">需要多次内核态到用户态的转换,转发效率低下</span><br><span class="line"><span class="number">2.</span>iptables</span><br><span class="line">通过dnat的方式实现service到pod地址流量转发</span><br><span class="line">优点:</span><br><span class="line">只有一次内核态到用户态的转换,转发效率比较高</span><br><span class="line">缺点:</span><br><span class="line">iptables底层是链表,当svc条目多,需要维护的iptable规则多的时候,增删改查性能会大幅下降;</span><br><span class="line">iptables转发流量只支持随机,轮询等简单的负载均衡算法</span><br><span class="line">iptables不支持<span class="number">7</span>层的健康检查,会话保持,连接重试等功能</span><br><span class="line"><span class="number">3.</span>ipvs</span><br><span class="line">通过dnat的方式实现service到pod地址流量转发</span><br><span class="line">优点:</span><br><span class="line">工作在内核态,转发效率高;</span><br><span class="line">底层是哈希表,ipvs通过ipset组件来管理和存储iptable规则,并不会直接增加iptable表,svc条目多的</span><br><span class="line">时候不会造成性能下降,理论上可以无限扩展;</span><br><span class="line">支持dh,sh,sed等更为复杂的负载均衡算法;</span><br><span class="line">支持健康检查,会话保持等<span class="number">7</span>层功能</span><br><span class="line">缺点:</span><br><span class="line">ipvs在snat,nodeport等场景还是使用iptable转发实现,linux kernel原生只支持dnat;</span><br><span class="line">ipvs模式下,滚动更新pod的场景下,conn_track表会复用之前记录的dnat记录,导致流量还是转发到之前老的pod里面</span><br><span class="line"><span class="number">4.</span>kernelspace</span><br><span class="line">主要使用在windows</span><br></pre></td></tr></table></figure>
+
+<h2 id="service类型"><a href="#service类型" class="headerlink" title="service类型"></a>service类型</h2><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">service支持的类型主要是kubernetes中服务暴露的方式</span><br><span class="line">1.clusterip</span><br><span class="line">集群内部通信的方式</span><br><span class="line">2.nodeport</span><br><span class="line">集群外与集群内通信方式</span><br><span class="line">3.loadbalancer</span><br><span class="line">用于结合公有云负载均衡ip</span><br><span class="line">4.ingress</span><br><span class="line">ingress可以作用于多个service，作为集群内部服务的统一入口，ingress作用在七层，可以根据不同的url，将请求转发到不同的service上</span><br></pre></td></tr></table></figure>
+
+<h2 id="service的服务发现"><a href="#service的服务发现" class="headerlink" title="service的服务发现"></a>service的服务发现</h2><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">service的服务发现主要是通过coredns组件完成对svc的域名解析,从而实现各个pod之间的通信.coredns通过plugin的方式进行扩展,独立,灵活</span><br><span class="line">接下来会将kube-proxy的实现</span><br></pre></td></tr></table></figure>
+
+]]></content>
+      <categories>
+        <category>k8s源码分析</category>
+      </categories>
+      <tags>
+        <tag>k8s</tag>
+        <tag>service</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Deployment-controller源码分析</title>
+    <url>/2020/01/26/Deployment-controller%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/</url>
+    <content><![CDATA[<h3 id="deployment的功能"><a href="#deployment的功能" class="headerlink" title="deployment的功能"></a>deployment的功能</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">deployment controller是deployment资源的控制器,一般用来处理无状态的服务类型,通过DeploymentInformer,ReplicasetInformer,PodInformer监听对应的三种资源,当资源发生变化的时候,出发Deployment Controller中的syncloop操作,直到最终状态符合预期</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">对于 deployment 的删除、暂停恢复、扩缩容以及更新操作都是在 syncDeployment 方法中进行处理的，最终是通过调用 syncStatusOnly、</span><br><span class="line">sync rollback、rolloutRecreate、rolloutRolling 这几个方法来处理的，其中 syncStatusOnly 和 sync 都是更新 Deployment 的 Status，rollback 是用来回滚的，rolloutRecreate 和 rolloutRolling 是根据不同的更新策略来更新 Deployment 的，下面就来看看这些操作的具体实现。</span><br></pre></td></tr></table></figure>
+
+]]></content>
+  </entry>
+  <entry>
     <title>kubernetes中关于event监控实践</title>
     <url>/2019/12/14/kubernetes%E4%B8%AD%E5%85%B3%E4%BA%8Eevent%E7%9B%91%E6%8E%A7%E5%AE%9E%E8%B7%B5/</url>
     <content><![CDATA[<h3 id="event定义"><a href="#event定义" class="headerlink" title="event定义"></a>event定义</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">event是k8s集群中各种事件列表，包含容器事件(创建、启动、失败等)、镜像事件(镜像拉取失败等)、kubelet事件(节点失效、节点不可调度等)、Pod Worker事件(同步失败)等</span><br></pre></td></tr></table></figure>

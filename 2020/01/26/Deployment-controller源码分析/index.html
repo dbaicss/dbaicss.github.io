@@ -81,18 +81,18 @@
 
 
 
-<meta name="description" content="记录各种美好">
+<meta name="description" content="deployment的功能1deployment controller是deployment资源的控制器,一般用来处理无状态的服务类型,通过DeploymentInformer,ReplicasetInformer,PodInformer监听对应的三种资源,当资源发生变化的时候,出发Deployment Controller中的syncloop操作,直到最终状态符合预期  12对于 deploym">
 <meta name="keywords" content="kubernetes golang go 源码">
-<meta property="og:type" content="website">
-<meta property="og:title" content="tags">
-<meta property="og:url" content="https://dbaicss.github.io/tags/index.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Deployment-controller源码分析">
+<meta property="og:url" content="https://dbaicss.github.io/2020/01/26/Deployment-controller源码分析/index.html">
 <meta property="og:site_name" content="皮特撸斯">
-<meta property="og:description" content="记录各种美好">
+<meta property="og:description" content="deployment的功能1deployment controller是deployment资源的控制器,一般用来处理无状态的服务类型,通过DeploymentInformer,ReplicasetInformer,PodInformer监听对应的三种资源,当资源发生变化的时候,出发Deployment Controller中的syncloop操作,直到最终状态符合预期  12对于 deploym">
 <meta property="og:locale" content="zh-cn">
-<meta property="og:updated_time" content="2019-12-14T06:04:19.257Z">
+<meta property="og:updated_time" content="2020-02-06T02:03:44.815Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="tags">
-<meta name="twitter:description" content="记录各种美好">
+<meta name="twitter:title" content="Deployment-controller源码分析">
+<meta name="twitter:description" content="deployment的功能1deployment controller是deployment资源的控制器,一般用来处理无状态的服务类型,通过DeploymentInformer,ReplicasetInformer,PodInformer监听对应的三种资源,当资源发生变化的时候,出发Deployment Controller中的syncloop操作,直到最终状态符合预期  12对于 deploym">
 
 
 
@@ -122,13 +122,13 @@
 
 
 
-  <link rel="canonical" href="https://dbaicss.github.io/tags/">
+  <link rel="canonical" href="https://dbaicss.github.io/2020/01/26/Deployment-controller源码分析/">
 
 
 
 
 
-  <title>tags | 皮特撸斯</title>
+  <title>Deployment-controller源码分析 | 皮特撸斯</title>
   
 
 
@@ -285,40 +285,172 @@
 
   <div id="posts" class="posts-expand">
     
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://dbaicss.github.io/2020/01/26/Deployment-controller源码分析/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="dbaicss">
+      <meta itemprop="description" content>
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="皮特撸斯">
+    </span>
+
     
-    
-    <div class="post-block page">
       <header class="post-header">
 
-	<h2 class="post-title" itemprop="name headline">tags</h2>
-
-
-
-</header>
-
-      
-      
-      
-      <div class="post-body">
         
         
-          <div class="tag-cloud">
-            <div class="tag-cloud-title">
-                6 tags in total
-            </div>
-            <div class="tag-cloud-tags">
-              <a href="/tags/event-exporter/" style="font-size: 12px; color: #ccc">event exporter</a> <a href="/tags/grafana/" style="font-size: 12px; color: #ccc">grafana</a> <a href="/tags/k8s/" style="font-size: 30px; color: #111">k8s</a> <a href="/tags/prometheus/" style="font-size: 12px; color: #ccc">prometheus</a> <a href="/tags/scheduler/" style="font-size: 21px; color: #6f6f6f">scheduler</a> <a href="/tags/service/" style="font-size: 12px; color: #ccc">service</a>
-            </div>
-          </div>
+          <h2 class="post-title" itemprop="name headline">Deployment-controller源码分析</h2>
         
-      </div>
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2020-01-26T15:42:23+08:00">
+                2020-01-26
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
       
       
+
+      
+        <h3 id="deployment的功能"><a href="#deployment的功能" class="headerlink" title="deployment的功能"></a>deployment的功能</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">deployment controller是deployment资源的控制器,一般用来处理无状态的服务类型,通过DeploymentInformer,ReplicasetInformer,PodInformer监听对应的三种资源,当资源发生变化的时候,出发Deployment Controller中的syncloop操作,直到最终状态符合预期</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">对于 deployment 的删除、暂停恢复、扩缩容以及更新操作都是在 syncDeployment 方法中进行处理的，最终是通过调用 syncStatusOnly、</span><br><span class="line">sync rollback、rolloutRecreate、rolloutRolling 这几个方法来处理的，其中 syncStatusOnly 和 sync 都是更新 Deployment 的 Status，rollback 是用来回滚的，rolloutRecreate 和 rolloutRolling 是根据不同的更新策略来更新 Deployment 的，下面就来看看这些操作的具体实现。</span><br></pre></td></tr></table></figure>
+
+
       
     </div>
     
     
     
+
+    
+      <div>
+          <div>  <div style="text-align:center;color: #ccc;font-size:14px;">-------------本文结束<i class="fa fa-smile-o"></i>感谢您的阅读-------------</div>  </div>
+
+      </div>
+    
+
+
+    
+
+    
+      <div>
+        <div style="padding: 10px 0; margin: 20px auto; width: 90%; text-align: center;">
+  <div>谢谢各位看官老爷,您的支持和鼓励是我继续写下去的动力!!</div>
+  <button id="rewardButton" disable="enable" style="width: 80px;line-height: 38px;text-align: center;font-weight: bold;color: #fff;border-radius: 5px;
+margin:0 20px 20px 0;position: relative;overflow: hidden;color: #8c96a0;text-shadow:1px 1px 1px #fff;border:1px solid #dce1e6;box-shadow: 0 1px 2px #fff inset,0 -1px 0 #a8abae inset;background: -webkit-linear-gradient(top,#f2f3f7,#e4e8ec);background: -moz-linear-gradient(top,#f2f3f7,#e4e8ec);background: linear-gradient(top,#f2f3f7,#e4e8ec);" onclick="var qr = document.getElementById('QR'); if (qr.style.display === 'none') {qr.style.display='block';} else {qr.style.display='none'}">
+    打赏
+  </button>
+  <div id="QR" style="display: none;">
+    
+      <div id="wechat" style="display: inline-block;width:150px;height:150px">
+        <img id="wechat_qr" src="/images/wechatpay.jpg" alt="dbaicss WeChat Pay">
+        <p>WeChat Pay</p>
+      </div>
+    
+  </div>
+</div>
+
+      </div>
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/12/14/kubernetes中关于event监控实践/" rel="next" title="kubernetes中关于event监控实践">
+                <i class="fa fa-chevron-left"></i> kubernetes中关于event监控实践
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2020/03/07/k8s-Service源码分析/" rel="prev" title="k8s-Service源码分析">
+                k8s-Service源码分析 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
   </div>
 
 
@@ -351,8 +483,17 @@
       
 
       
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            Table of Contents
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            Overview
+          </li>
+        </ul>
+      
 
-      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+      <section class="site-overview-wrap sidebar-panel">
         <div class="site-overview">
           <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
             
@@ -429,6 +570,22 @@
         </div>
       </section>
 
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#deployment的功能"><span class="nav-number">1.</span> <span class="nav-text">deployment的功能</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
       
 
       
